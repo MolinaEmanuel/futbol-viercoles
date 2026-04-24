@@ -15,14 +15,18 @@
 <h2>Julio "Messi" Gimenez</h2>
 
 <!-- NAV -->
-<div class="nav">
-  <button onclick="mostrarSeccion('inicio')">Inicio</button>
-  <button onclick="mostrarSeccion('historial')">Historial</button>
-  <button onclick="mostrarSeccion('ranking')">Ranking MVP</button>
-</div>
+<div class="topbar">
+  <div class="nav-left">
+    <button onclick="mostrarSeccion('inicio')">Inicio</button>
+    <button onclick="mostrarSeccion('historial')">Historial</button>
+    <button onclick="mostrarSeccion('ranking')">Ranking MVP</button>
+  </div>
 
-<button onclick="abrirLogin()">Modo admin</button>
-<button onclick="logout()">Salir admin</button>
+  <div class="nav-right">
+    <button onclick="abrirLogin()">Modo admin</button>
+    <button onclick="logout()">Salir admin</button>
+  </div>
+</div>
 
 <!-- LOGIN -->
 <div id="modalLogin" class="modal">
