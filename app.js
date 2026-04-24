@@ -18,10 +18,25 @@ let datos = [];
 let jugadores = [];
 
 /* NAV */
-window.mostrarSeccion = (sec) => {
-  ["inicio","historial","ranking"].forEach(s=>{
-    document.getElementById(s).style.display = s===sec ? "block":"none";
+window.mostrarSeccion = (id) => {
+  const secciones = document.querySelectorAll(".seccion");
+
+  secciones.forEach(sec => {
+    if (sec.classList.contains("activa")) {
+      sec.classList.remove("activa");
+      sec.classList.add("saliendo");
+
+      setTimeout(() => {
+        sec.classList.remove("saliendo");
+      }, 400);
+    }
   });
+
+  const nueva = document.getElementById(id);
+
+  setTimeout(() => {
+    nueva.classList.add("activa");
+  }, 50);
 };
 
 /* LOGIN */

@@ -24,7 +24,7 @@ h1 {
 
 h2 {
   text-align: center;
-  color: #9ca3af;
+  color: #ffffff;
 }
 
 /* ✅ FIX BOTONES CENTRADOS */
@@ -47,6 +47,7 @@ button {
   padding: 10px;
   color: white;
   border-radius: 10px;
+  font-weight: bold;
   cursor: pointer;
   transition: 0.25s;
 }
@@ -123,4 +124,44 @@ input {
   background:#1e293b;
   padding:20px;
   border-radius:10px;
+}
+
+/* CONTENEDOR SECCIONES */
+#inicio, #historial, #ranking {
+  position: relative;
+  width: 100%;
+  transition: all 0.4s ease;
+}
+
+/* ESTADO OCULTO */
+.seccion {
+  opacity: 0;
+  transform: translateX(30px);
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+/* ESTADO ACTIVO */
+.seccion.activa {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  position: relative;
+}
+
+/* SALIDA (cuando se va) */
+.seccion.saliendo {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+/* ANIMACIÓN SUAVE GLOBAL */
+.fade-in {
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
 }
