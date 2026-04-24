@@ -17,15 +17,16 @@ let admin = localStorage.getItem("admin") === "true";
 let datos = [];
 let jugadores = [];
 
-// NAV
+/* NAV */
 window.mostrarSeccion = (sec) => {
   ["inicio","historial","ranking"].forEach(s=>{
     document.getElementById(s).style.display = s===sec ? "block":"none";
   });
 };
 
-// LOGIN
+/* LOGIN */
 window.abrirLogin = () => modalLogin.style.display="flex";
+
 window.verificarLogin = () => {
   if(passwordInput.value==="cogi2"){
     admin=true;
@@ -34,13 +35,14 @@ window.verificarLogin = () => {
     renderAll();
   } else alert("Incorrecto");
 };
+
 window.logout = () => {
   admin=false;
   localStorage.removeItem("admin");
   renderAll();
 };
 
-// FECHAS
+/* FECHAS */
 function generarFechas(){
   let fechas=[], actual=new Date("2026-04-01");
   while(fechas.length<18){
@@ -50,7 +52,7 @@ function generarFechas(){
   return fechas;
 }
 
-// FIREBASE
+/* FIREBASE */
 function cargarDatos(){
   const ref=doc(db,"torneo","datos");
 
@@ -78,30 +80,37 @@ function guardar(){
   });
 }
 
-// RESULTADO
+/* RESULTADO */
 window.guardarResultado = (i)=>{
   let a=parseInt(document.getElementById("a"+i).value);
   let b=parseInt(document.getElementById("b"+i).value);
+
   if(isNaN(a)||isNaN(b)) return alert("Ingresá goles");
 
   datos[i].golesA=a;
   datos[i].golesB=b;
+
   guardar();
 };
 
-// MVP
-window.guardarJugador=()=>{
-  let jugados=datos.filter(p=>p.golesA!=null).length;
-  if(jugados===0) return;
+/* ✅ MVP FIX REAL */
+window.guardarJugador = () => {
+  let nombre = document.getElementById("inputJugador").value;
 
-  let nombre=inputJugador.value;
-  if(!nombre) return;
+  if (!nombre) return alert("Ingresá un nombre");
 
-  jugadores[jugados-1]=nombre;
+  let index = datos.findLastIndex(p => p.golesA != null);
+
+  if (index === -1) return alert("Primero cargá un resultado");
+
+  jugadores[index] = nombre;
+
+  document.getElementById("inputJugador").value = "";
+
   guardar();
 };
 
-// RENDER
+/* RENDER */
 function renderAll(){
   renderPartidos();
   renderTabla();
@@ -119,6 +128,7 @@ function renderPartidos(){
 
     if(p.golesA!=null){
       let dif=Math.abs(p.golesA-p.golesB);
+
       if(p.golesA>p.golesB){
         res=`${equipoA} ganó ${p.golesA}-${p.golesB} (+${dif})`;
       } else if(p.golesB>p.golesA){
@@ -149,6 +159,7 @@ function renderTabla(){
 
   datos.forEach(p=>{
     if(p.golesA==null) return;
+
     difA+=p.golesA-p.golesB;
     difB+=p.golesB-p.golesA;
 
@@ -167,10 +178,12 @@ function renderTabla(){
 }
 
 function renderInfo(){
-  let jugados=datos.filter(p=>p.golesA!=null).length;
-  fechaActual.innerText="Fecha "+jugados;
-  jugadorTexto.innerHTML="<b>"+(jugadores[jugados-1]||"-")+"</b>";
-  adminJugador.style.display=admin?"block":"none";
+  let index = datos.findLastIndex(p => p.golesA != null);
+
+  fechaActual.innerText = index >= 0 ? "Fecha " + (index + 1) : "-";
+  jugadorTexto.innerHTML = "<b>" + (jugadores[index] || "-") + "</b>";
+
+  adminJugador.style.display = admin ? "block" : "none";
 }
 
 function renderHistorial(){
@@ -189,6 +202,7 @@ function renderHistorial(){
 
 function renderRanking(){
   let count={};
+
   jugadores.forEach(j=>{
     if(!j) return;
     count[j]=(count[j]||0)+1;
@@ -200,5 +214,5 @@ function renderRanking(){
     .join("");
 }
 
-// INIT
+/* INIT */
 cargarDatos();

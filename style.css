@@ -27,17 +27,18 @@ h2 {
   color: #9ca3af;
 }
 
+/* ✅ FIX BOTONES CENTRADOS */
 .topbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
   margin: 20px 0;
 }
 
-.nav-left, .nav-right {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+.topbar button {
+  min-width: 120px;
 }
 
 button {
@@ -105,4 +106,21 @@ input {
 .lider {
   background: linear-gradient(90deg, gold, orange);
   color: black;
+}
+
+/* MODAL */
+.modal {
+  display: none;
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.7);
+  justify-content:center;
+  align-items:center;
+}
+
+.modal-content {
+  background:#1e293b;
+  padding:20px;
+  border-radius:10px;
 }
