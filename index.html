@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torneo Miércoles</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="header">⚽ Torneo Miércoles</div>
+
+<h1>Torneo Miércoles</h1>
+<h2>Apertura 2026</h2>
+
+<button onclick="abrirLogin()">Modo admin</button>
+<button onclick="logout()">Salir admin</button>
+
+<!-- MODAL LOGIN -->
+<div id="modalLogin" class="modal">
+  <div class="modal-content">
+    <h3>Ingreso admin</h3>
+    <input type="password" id="passwordInput" placeholder="Contraseña">
+    <button onclick="verificarLogin()">Ingresar</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Tabla de posiciones</h2>
+  <p id="tabla"></p>
+</div>
+
+<div class="card">
+  <h2>Partidos</h2>
+  <table id="partidos"></table>
+</div>
+
+<script>
+const equipoA = "Equipo SEBA";
+const equipoB = "Equipo HEBER";
+
+let admin = localStorage.getItem("admin") === "true";
+
+// MODAL LOGIN
+function abrirLogin() {
+  document.getElementById("modalLogin").style.display = "flex";
+}
+
+function verificarLogin() {
+  let pass = document.getElementById("passwordInput").value;
+
+  if (pass === "cogi2") {
+    admin = true;
+    localStorage.setItem("admin", "true");
+    cerrarLogin();
+    renderPartidos();
+  } else {
+    alert("Contraseña incorrecta");
+  }
+}
+
+function cerrarLogin() {
+  document.getElementById("modalLogin").style.display = "none";
+}
+
+function logout() {
+  admin = false;
+  localStorage.removeItem("admin");
+  renderPartidos();
+}
+
+// FECHAS
+function generarFechas() {
+  let fechas = [];
+  let inicio = new Date("2026-04-01");
+  let fin = new Date("2026-07-29");
+
+  let actual = new Date(inicio);
+
+  while (actual <= fin) {
+    if (actual.getDay() === 3) {
+      fechas.push(new Date(actual));
+    }
+    actual.setDate(actual.getDate() + 1);
+  }
+
+  return fechas;
+}
+
+// DATOS
+let datos = JSON.parse(localStorage.getItem("torneo")) || [];
+
+if (datos.length === 0) {
+  datos = generarFechas().map(f => ({
+    fecha: f.toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: '2-digit'
+    }),
+    resultado: null
+  }));
+}
+
+function guardar() {
+  localStorage.setItem("torneo", JSON.stringify(datos));
+}
+
+// PARTIDOS
+function renderPartidos() {
+  const tabla = document.getElementById("partidos");
+
+  tabla.innerHTML = `
+    <tr>
+      <th>Fecha</th>
+      <th>Resultado</th>
+      <th>Cargar</th>
+    </tr>
+  `;
+
+  datos.forEach((partido, i) => {
+    let fila = document.createElement("tr");
+
+    fila.innerHTML = `
+      <td>${partido.fecha}</td>
+      <td class="${
+        partido.resultado === "Empate"
+          ? "empate"
+          : partido.resultado?.includes(equipoA) || partido.resultado?.includes(equipoB)
+          ? "ganado"
+          : ""
+      }">
+        ${partido.resultado ?? "-"}
+      </td>
+      <td>
+        ${admin ? `
+          <input type="number" placeholder="+goles" id="goles${i}" style="width:60px;">
+          <select id="ganador${i}">
+            <option value="">-</option>
+            <option value="A">${equipoA}</option>
+            <option value="B">${equipoB}</option>
+            <option value="E">Empate</option>
+          </select>
+          <button onclick="guardarResultado(${i})">OK</button>
+        ` : 'Solo lectura'}
+      </td>
+    `;
+
+    tabla.appendChild(fila);
+  });
+}
+
+// GUARDAR RESULTADO
+function guardarResultado(i) {
+  let goles = document.getElementById("goles" + i).value;
+  let ganador = document.getElementById("ganador" + i).value;
+
+  if (!ganador) return alert("Elegí un resultado");
+  if (ganador !== "E" && (!goles || goles <= 0)) {
+    return alert("Ingresá la diferencia de goles");
+  }
+
+  if (ganador === "E") {
+    datos[i].resultado = "Empate";
+  } else {
+    datos[i].resultado = `${ganador === "A" ? equipoA : equipoB} +${goles}`;
+  }
+
+  guardar();
+  renderPartidos();
+  renderTabla();
+}
+
+// ANIMAR NÚMEROS
+function animarValor(elemento, inicio, fin, duracion) {
+  let start = null;
+
+  function step(timestamp) {
+    if (!start) start = timestamp;
+    let progreso = timestamp - start;
+    let valor = Math.min(inicio + (fin - inicio) * (progreso / duracion), fin);
+    elemento.innerText = Math.floor(valor);
+
+    if (progreso < duracion) {
+      requestAnimationFrame(step);
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+// TABLA
+function renderTabla() {
+  let puntosA = 0;
+  let puntosB = 0;
+
+  datos.forEach(p => {
+    if (!p.resultado) return;
+
+    if (p.resultado === "Empate") {
+      puntosA += 1;
+      puntosB += 1;
+    } else if (p.resultado.includes(equipoA)) {
+      puntosA += 3;
+    } else {
+      puntosB += 3;
+    }
+  });
+
+  let jugados = datos.filter(p => p.resultado).length;
+
+  let tabla = [
+    { nombre: equipoA, puntos: puntosA },
+    { nombre: equipoB, puntos: puntosB }
+  ].sort((a, b) => b.puntos - a.puntos);
+
+  document.getElementById("tabla").innerHTML = `
+    <div style="margin-bottom:10px; color:#9ca3af;">
+      Partidos jugados: ${jugados}
+    </div>
+    ${tabla.map((e, i) => `
+      <div class="fila ${i === 0 ? 'lider' : ''}">
+        ${i === 0 ? '🥇' : ''} <b>${e.nombre}</b> -
+        <span id="pts${i}">0</span> pts
+      </div>
+    `).join("")}
+  `;
+
+  // Animar puntos
+  tabla.forEach((e, i) => {
+    let el = document.getElementById("pts" + i);
+    animarValor(el, 0, e.puntos, 500);
+  });
+}
+
+// INIT
+renderPartidos();
+renderTabla();
+</script>
+
+</body>
+</html>
