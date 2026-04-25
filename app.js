@@ -36,8 +36,17 @@ window.mostrarSeccion = (id) => {
   const secciones = document.querySelectorAll(".seccion");
 
   secciones.forEach(sec => {
-    sec.classList.remove("activa", "saliendo");
-    sec.style.display = "none";
+    if (sec.classList.contains("activa")) {
+      sec.classList.remove("activa");
+      sec.classList.add("saliendo");
+
+      setTimeout(() => {
+        sec.style.display = "none";
+        sec.classList.remove("saliendo");
+      }, 300);
+    } else {
+      sec.style.display = "none";
+    }
   });
 
   const nueva = document.getElementById(id);
@@ -91,18 +100,24 @@ function cargarDatos(){
 
   onSnapshot(ref,(docSnap)=>{
     if(docSnap.exists()){
-      datos=docSnap.data().partidos;
+      datos=docSnap.data().partidos || [];
+
+      // 🔥 FIX: asegurar 18 fechas SIEMPRE
+      if(datos.length < 18){
+        const nuevas = generarFechas();
+        datos = nuevas.map((f,i)=> datos[i] || f);
+      }
+
       jugadores = docSnap.data().jugadores || new Array(datos.length).fill("");
       planteles = docSnap.data().planteles || { A: [], B: [] };
+
     } else {
-      datos=generarFechas().map(f=>({
-        fecha:f.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}),
-        golesA:null,
-        golesB:null
-      }));
-      jugadores=new Array(18).fill("");
+      datos = generarFechas();
+      jugadores = new Array(18).fill("");
+      planteles = { A: [], B: [] };
       guardar();
     }
+
     renderAll();
   });
 }
