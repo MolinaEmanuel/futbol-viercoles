@@ -2,9 +2,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_AUTH_DOMAIN",
-  projectId: "TU_PROJECT_ID"
+  apiKey: "AIzaSyAY-F10jVa_KTRtIjm4GNupFQ_UR1TsJVw",
+  authDomain: "torneo-viercoles.firebaseapp.com",
+  projectId: "torneo-viercoles",
+  storageBucket: "torneo-viercoles.firebasestorage.app",
+  messagingSenderId: "233402812946",
+  appId: "1:233402812946:web:f1b9acd1f95f243200e6cb"
 };
 
 const app = initializeApp(firebaseConfig);
