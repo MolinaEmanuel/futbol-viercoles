@@ -82,7 +82,7 @@ function cargarDatos(){
   onSnapshot(ref,(docSnap)=>{
     if(docSnap.exists()){
       datos=docSnap.data().partidos;
-      jugadores=docSnap.data().jugadores||[];
+      jugadores = docSnap.data().jugadores || new Array(datos.length).fill("");
     } else {
       datos=generarFechas().map(f=>({
         fecha:f.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}),
@@ -125,6 +125,11 @@ window.guardarJugador = () => {
   let index = datos.findLastIndex(p => p.golesA != null);
 
   if (index === -1) return alert("Primero cargá un resultado");
+
+  // 🔥 CLAVE: asegurar tamaño
+  if (jugadores.length < datos.length) {
+    jugadores = new Array(datos.length).fill("");
+  }
 
   jugadores[index] = nombre;
 
