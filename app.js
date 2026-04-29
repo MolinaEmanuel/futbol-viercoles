@@ -108,19 +108,40 @@ function cargarDatos(){
     if(docSnap.exists()){
       const data = docSnap.data();
 
+      // PARTIDOS
       datos = data.partidos || generarFechas();
+
+      // MVPs
       jugadores = data.jugadores || new Array(datos.length).fill("");
 
-      planteles = data.planteles || { A: [], B: [] };
+      // 🔥 PLANTELES LIMPIOS SIEMPRE
+      planteles = { A: [], B: [] };
 
-      // 🔥 normalización segura
-      ["A","B"].forEach(eq => {
-        planteles[eq] = (planteles[eq] || []).map(j => ({
-          nombre: j?.nombre || "-",
-          altura: j?.altura || "-",
-          foto: j?.foto || ""
-        }));
-      });
+      if (data.planteles) {
+
+        // EQUIPO A
+        if (Array.isArray(data.planteles.A)) {
+          planteles.A = data.planteles.A
+            .filter(j => j && typeof j === "object")
+            .map(j => ({
+              nombre: j.nombre || "-",
+              altura: j.altura || "-",
+              foto: j.foto || ""
+            }));
+        }
+
+        // EQUIPO B
+        if (Array.isArray(data.planteles.B)) {
+          planteles.B = data.planteles.B
+            .filter(j => j && typeof j === "object")
+            .map(j => ({
+              nombre: j.nombre || "-",
+              altura: j.altura || "-",
+              foto: j.foto || ""
+            }));
+        }
+
+      }
 
     } else {
       datos = generarFechas();
@@ -312,9 +333,6 @@ function renderRanking(){
 }
 
 function renderPlanteles() {
-
-  document.getElementById("adminA").style.display = admin ? "block" : "none";
-  document.getElementById("adminB").style.display = admin ? "block" : "none";
 
   listaA.innerHTML = planteles.A.map((j,i) => `
     <div class="fila jugador">
