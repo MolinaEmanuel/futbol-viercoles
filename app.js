@@ -8,6 +8,8 @@ const adminJugador = document.getElementById("adminJugador");
 const historialContenido = document.getElementById("historialContenido");
 const rankingContenido = document.getElementById("rankingContenido");
 const loader = document.getElementById("loader");
+const listaA = document.getElementById("listaA");
+const listaB = document.getElementById("listaB");
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -100,23 +102,21 @@ function generarFechas(){
 
 /* FIREBASE */
 function cargarDatos(){
-  const ref=doc(db,"torneo","datos");
-  setTimeout(() => {
-  loader.classList.add("hidden");
-}, 500);
+  const ref = doc(db,"torneo","datos");
 
   onSnapshot(ref,(docSnap)=>{
     if(docSnap.exists()){
-      datos=docSnap.data().partidos || [];
+      const data = docSnap.data();
 
-      // 🔥 FIX: asegurar 18 fechas SIEMPRE
+      datos = data.partidos || [];
+
       if(datos.length < 18){
         const nuevas = generarFechas();
         datos = nuevas.map((f,i)=> datos[i] || f);
       }
 
-      jugadores = docSnap.data().jugadores || new Array(datos.length).fill("");
-      planteles = docSnap.data().planteles || { A: [], B: [] };
+      jugadores = data.jugadores || new Array(datos.length).fill("");
+      planteles = data.planteles || { A: [], B: [] };
 
     } else {
       datos = generarFechas();
@@ -126,6 +126,11 @@ function cargarDatos(){
     }
 
     renderAll();
+
+    // 🔥 loader se oculta cuando realmente terminó
+    setTimeout(() => {
+      loader.classList.add("hidden");
+    }, 300);
   });
 }
 

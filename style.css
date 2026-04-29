@@ -13,7 +13,7 @@ body > *:not(.header) {
 
 .header {
   position: relative;
-  margin-top: -220px; /* 🔥 esto lo sube sobre el video */
+  margin-top: -300px; /* acompaña nuevo tamaño */
   z-index: 10;
 
   display: flex;
@@ -42,15 +42,12 @@ body > *:not(.header) {
   height: 140px;
   filter: drop-shadow(0 0 20px rgba(239,68,68,0.5));
   transition: all 0.3s ease;
+  background: transparent;
+  mix-blend-mode: lighten;
 }
 
 .logo-principal:hover {
   transform: scale(1.15) rotate(-2deg);
-}
-
-.logo-principal {
-  background: transparent;
-  mix-blend-mode: lighten;
 }
 
 /* CENTRO */
@@ -336,7 +333,7 @@ input {
 .video-banner {
   position: relative;
   width: 100%;
-  height: 320px;
+  height: 460px;
   overflow: hidden;
 }
 
@@ -345,6 +342,7 @@ input {
   height: 100%;
   object-fit: cover;
   filter: brightness(0.45) contrast(1.1);
+  transform: scale(1.05);
 }
 
 /* overlay oscuro pro */
@@ -367,7 +365,7 @@ input {
 @media (max-width: 600px) {
 
   .video-banner {
-  height: 220px;
+  height: 260px;
   }
 
   .header-left {
