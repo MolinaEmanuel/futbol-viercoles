@@ -127,6 +127,36 @@ window.guardarResultado = (i)=>{
   guardar();
 };
 
+window.mostrarSeccion = (id) => {
+
+  const secciones = document.querySelectorAll(".seccion");
+
+  secciones.forEach(sec => {
+    if(sec.classList.contains("activa")){
+      sec.classList.remove("activa");
+      sec.classList.add("saliendo");
+
+      setTimeout(()=>{
+        sec.classList.remove("saliendo");
+        sec.style.display = "none";
+      }, 400);
+    } else {
+      sec.style.display = "none";
+    }
+  });
+
+  const nueva = document.getElementById(id);
+
+  setTimeout(()=>{
+    nueva.style.display = "block";
+
+    setTimeout(()=>{
+      nueva.classList.add("activa");
+    }, 50);
+
+  }, 400);
+};
+
 /* MVP */
 window.guardarJugador = () => {
   let nombre = document.getElementById("inputJugador").value;
@@ -206,28 +236,44 @@ function renderPartidos(){
 
 function renderTabla(){
 
-  let puntos = [
-    { nombre: equipoA, pts: 0 },
-    { nombre: equipoB, pts: 0 }
+  let equipos = [
+    { nombre: equipoA, pts: 0, gf: 0, gc: 0 },
+    { nombre: equipoB, pts: 0, gf: 0, gc: 0 }
   ];
 
   datos.forEach(p=>{
-    if(p.golesA==null) return;
+    if(p.golesA == null) return;
 
-    if(p.golesA>p.golesB) puntos[0].pts += 3;
-    else if(p.golesB>p.golesA) puntos[1].pts += 3;
+    // GOLES
+    equipos[0].gf += p.golesA;
+    equipos[0].gc += p.golesB;
+
+    equipos[1].gf += p.golesB;
+    equipos[1].gc += p.golesA;
+
+    // PUNTOS
+    if(p.golesA > p.golesB) equipos[0].pts += 3;
+    else if(p.golesB > p.golesA) equipos[1].pts += 3;
     else {
-      puntos[0].pts += 1;
-      puntos[1].pts += 1;
+      equipos[0].pts += 1;
+      equipos[1].pts += 1;
     }
   });
 
-  // 🔥 ORDENAR POR PUNTOS
-  puntos.sort((a,b)=> b.pts - a.pts);
+  // CALCULAR GD
+  equipos.forEach(e=>{
+    e.gd = e.gf - e.gc;
+  });
 
-  tabla.innerHTML = puntos.map((eq,i)=>`
+  // ORDENAR POR PUNTOS Y GD
+  equipos.sort((a,b)=>{
+    if(b.pts !== a.pts) return b.pts - a.pts;
+    return b.gd - a.gd;
+  });
+
+  tabla.innerHTML = equipos.map((eq,i)=>`
     <div class="fila ${i===0 ? 'lider' : ''}">
-      ${eq.nombre}: ${eq.pts} pts
+      ${eq.nombre}: ${eq.pts} pts (${eq.gd >= 0 ? '+' : ''}${eq.gd} GD)
     </div>
   `).join("");
 }
