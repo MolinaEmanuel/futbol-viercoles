@@ -623,3 +623,35 @@ input {
 }
 
 
+/* 🔥 FIX CLICK JUGADORES (NO TOCAR NADA MÁS) */
+
+.video-banner,
+.video-banner video,
+.video-banner::after {
+  pointer-events: none !important;
+}
+
+.header {
+  pointer-events: none;
+}
+
+.header * {
+  pointer-events: auto;
+}
+
+/* asegurar que el plantel esté por encima */
+#plantel {
+  position: relative;
+  z-index: 20;
+}
+
+/* asegurar que las cards sean clickeables */
+.jugador-card {
+  position: relative;
+  z-index: 30;
+}
+
+/* modal SIEMPRE arriba de todo */
+.modal-jugador {
+  z-index: 999999 !important;
+}
