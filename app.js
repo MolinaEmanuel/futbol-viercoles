@@ -26,7 +26,9 @@ const db = getFirestore(app);
 const equipoA = "Equipo SEBA";
 const equipoB = "Equipo HEBER";
 
-let admin = localStorage.getItem("admin") === "true";
+// ✅ SOLO UNA FUENTE DE VERDAD
+window.admin = localStorage.getItem("admin") === "true";
+
 let datos = [];
 let jugadores = [];
 let planteles = { A: [], B: [] };
@@ -60,18 +62,12 @@ function cargarDatos(){
       datos = data.partidos || generarFechas();
       jugadores = data.jugadores || new Array(datos.length).fill("");
 
-      // 🔥 NORMALIZACIÓN CORRECTA (INCLUYE NACIMIENTO)
       planteles = data.planteles || { A: [], B: [] };
 
       ["A","B"].forEach(eq=>{
         planteles[eq] = (planteles[eq] || []).map(j=>{
           if(typeof j === "string"){
-            return { 
-              nombre: j, 
-              altura: "-", 
-              nacimiento: "-", 
-              foto: "" 
-            };
+            return { nombre: j, altura: "-", nacimiento: "-", foto: "" };
           }
           return {
             nombre: j?.nombre || "-",
@@ -107,7 +103,7 @@ window.abrirLogin = () => modalLogin.style.display="flex";
 
 window.verificarLogin = () => {
   if(passwordInput.value==="cogi2"){
-    admin=true;
+    window.admin = true;
     localStorage.setItem("admin","true");
     modalLogin.style.display="none";
     renderAll();
@@ -115,7 +111,7 @@ window.verificarLogin = () => {
 };
 
 window.logout = () => {
-  admin=false;
+  window.admin = false;
   localStorage.removeItem("admin");
   renderAll();
 };
@@ -134,7 +130,6 @@ window.guardarResultado = (i)=>{
 };
 
 window.mostrarSeccion = (id) => {
-
   const secciones = document.querySelectorAll(".seccion");
 
   secciones.forEach(sec => {
@@ -155,11 +150,7 @@ window.mostrarSeccion = (id) => {
 
   setTimeout(()=>{
     nueva.style.display = "block";
-
-    setTimeout(()=>{
-      nueva.classList.add("activa");
-    }, 50);
-
+    setTimeout(()=> nueva.classList.add("activa"), 50);
   }, 400);
 };
 
@@ -177,7 +168,6 @@ window.guardarJugador = () => {
 };
 
 window.agregarJugador = (equipo) => {
-
   let nombre = prompt("Nombre completo");
   if (!nombre) return;
 
@@ -187,19 +177,13 @@ window.agregarJugador = (equipo) => {
 
   if(!planteles[equipo]) planteles[equipo] = [];
 
-  planteles[equipo].push({
-    nombre,
-    altura,
-    nacimiento,
-    foto
-  });
+  planteles[equipo].push({ nombre, altura, nacimiento, foto });
 
   guardar();
-  renderPlanteles(); // 🔥 clave
+  renderPlanteles();
 };
 
 window.eliminarJugador = function(equipo, index) {
-
   if(!confirm("Eliminar jugador?")) return;
 
   planteles[equipo].splice(index, 1);
@@ -227,20 +211,16 @@ function renderPartidos(){
     let res="-";
 
     if(p.golesA!=null){
-      if(p.golesA>p.golesB){
-        res=`${equipoA} ganó ${p.golesA}-${p.golesB}`;
-      } else if(p.golesB>p.golesA){
-        res=`${equipoB} ganó ${p.golesB}-${p.golesA}`;
-      } else {
-        res=`Empate ${p.golesA}-${p.golesB}`;
-      }
+      if(p.golesA>p.golesB) res=`${equipoA} ganó ${p.golesA}-${p.golesB}`;
+      else if(p.golesB>p.golesA) res=`${equipoB} ganó ${p.golesB}-${p.golesA}`;
+      else res=`Empate ${p.golesA}-${p.golesB}`;
     }
 
     html+=`<tr>
     <td>Fecha ${i+1}</td>
     <td>${p.fecha}</td>
     <td>${res}</td>
-    <td>${admin?`
+    <td>${window.admin?`
       <input id="a${i}" type="number">
       vs
       <input id="b${i}" type="number">
@@ -253,7 +233,6 @@ function renderPartidos(){
 }
 
 function renderTabla(){
-
   let equipos = [
     { nombre: equipoA, pts: 0, gf: 0, gc: 0 },
     { nombre: equipoB, pts: 0, gf: 0, gc: 0 }
@@ -262,32 +241,19 @@ function renderTabla(){
   datos.forEach(p=>{
     if(p.golesA == null) return;
 
-    // GOLES
     equipos[0].gf += p.golesA;
     equipos[0].gc += p.golesB;
-
     equipos[1].gf += p.golesB;
     equipos[1].gc += p.golesA;
 
-    // PUNTOS
     if(p.golesA > p.golesB) equipos[0].pts += 3;
     else if(p.golesB > p.golesA) equipos[1].pts += 3;
-    else {
-      equipos[0].pts += 1;
-      equipos[1].pts += 1;
-    }
+    else { equipos[0].pts += 1; equipos[1].pts += 1; }
   });
 
-  // CALCULAR GD
-  equipos.forEach(e=>{
-    e.gd = e.gf - e.gc;
-  });
+  equipos.forEach(e=> e.gd = e.gf - e.gc);
 
-  // ORDENAR POR PUNTOS Y GD
-  equipos.sort((a,b)=>{
-    if(b.pts !== a.pts) return b.pts - a.pts;
-    return b.gd - a.gd;
-  });
+  equipos.sort((a,b)=> b.pts !== a.pts ? b.pts - a.pts : b.gd - a.gd);
 
   tabla.innerHTML = equipos.map((eq,i)=>`
     <div class="fila ${i===0 ? 'lider' : ''}">
@@ -302,7 +268,7 @@ function renderInfo(){
   fechaActual.innerText = index >= 0 ? "Fecha " + (index + 1) : "-";
   jugadorTexto.innerHTML = "<b>" + (jugadores[index] || "-") + "</b>";
 
-  adminJugador.style.display = admin ? "block" : "none";
+  adminJugador.style.display = window.admin ? "block" : "none";
 }
 
 function renderHistorial() {
@@ -312,15 +278,8 @@ function renderHistorial() {
       ${p.golesA!=null ? `${p.golesA}-${p.golesB}` : "Sin jugar"} <br>
 
       MVP: ${
-        admin
-        ? `
-          <input 
-            type="text" 
-            value="${jugadores[i] || ''}" 
-            onchange="editarMVP(${i}, this.value)"
-            placeholder="Nombre jugador"
-          >
-        `
+        window.admin
+        ? `<input type="text" value="${jugadores[i] || ''}" onchange="editarMVP(${i}, this.value)">`
         : `<b>${jugadores[i] || "-"}</b>`
       }
     </div>
@@ -333,7 +292,6 @@ window.editarMVP = (index, nombre) => {
 };
 
 function renderRanking(){
-
   let count = {};
 
   jugadores.forEach(j=>{
@@ -341,7 +299,6 @@ function renderRanking(){
     count[j] = (count[j] || 0) + 1;
   });
 
-  // 🔥 PASAR A ARRAY Y ORDENAR
   let ranking = Object.entries(count)
     .map(([nombre, puntos]) => ({ nombre, puntos }))
     .sort((a,b) => b.puntos - a.puntos);
@@ -355,18 +312,6 @@ function renderRanking(){
 
 function renderPlanteles() {
 
-  // FOTO EQUIPO
-  if(planteles.A?.fotoEquipo){
-    imgEquipoA.src = planteles.A.fotoEquipo;
-    imgEquipoA.style.display = "block";
-  }
-
-  if(planteles.B?.fotoEquipo){
-    imgEquipoB.src = planteles.B.fotoEquipo;
-    imgEquipoB.style.display = "block";
-  }
-
-  // LISTAS
   listaA.innerHTML = (planteles.A || []).map((j, i) => `
     <div class="card jugador-card" onclick="abrirJugadorIndex('A', ${i})">
       <img src="${j.foto || 'https://via.placeholder.com/100'}">
@@ -387,118 +332,50 @@ function renderPlanteles() {
     </div>
   `).join("");
 
-  // ADMIN BUTTONS
-  document.getElementById("btnA").style.display = admin ? "inline-block" : "none";
-  document.getElementById("btnB").style.display = admin ? "inline-block" : "none";
-  document.getElementById("fotoA").style.display = admin ? "inline-block" : "none";
-  document.getElementById("fotoB").style.display = admin ? "inline-block" : "none";
+  document.getElementById("btnA").style.display = window.admin ? "inline-block" : "none";
+  document.getElementById("btnB").style.display = window.admin ? "inline-block" : "none";
+  document.getElementById("fotoA").style.display = window.admin ? "inline-block" : "none";
+  document.getElementById("fotoB").style.display = window.admin ? "inline-block" : "none";
 }
 
-/* TOGGLE EQUIPO */
-window.toggleEquipo = (eq) => {
-  const el = document.getElementById("lista"+eq);
-  el.style.display = el.style.display === "block" ? "none" : "block";
-};
-
-/* FOTO DE EQUIPO */
-window.setFotoEquipo = (eq) => {
-
-  let ruta = prompt("Ruta de la imagen del equipo (assets/images/...)");
-  if(!ruta) return;
-
-  if(!planteles[eq]) planteles[eq] = [];
-
-  planteles[eq].fotoEquipo = ruta;
-
-  guardar();
-};
-
-window.guardarEdicionJugador = function(equipo, index) {
-
-  const nombre = document.getElementById("editNombre").value;
-  const altura = document.getElementById("editAltura").value;
-  const nacimiento = document.getElementById("editNacimiento").value;
-  const foto = document.getElementById("editFoto").value;
-
-  planteles[equipo][index] = {
-    nombre,
-    altura,
-    nacimiento,
-    foto
-  };
-
-  guardar();
-  renderPlanteles();
-
-  document.querySelector(".modal-jugador").remove();
-};
-
-/* MODAL JUGADOR */
+/* MODAL */
 function abrirJugador(j, index, equipo){
-
   const modal = document.createElement("div");
   modal.className = "modal-jugador activo";
 
   modal.innerHTML = `
-    <div class="overlay"></div>
+    <div class="overlay" onclick="this.parentElement.remove()"></div>
 
     <div class="card-jugador">
       <img src="${j.foto || 'https://via.placeholder.com/200'}">
 
       ${
-        admin
+        window.admin
         ? `
-          <input id="editNombre" value="${j.nombre}" placeholder="Nombre">
-          <input id="editAltura" value="${j.altura}" placeholder="Altura">
-          <input id="editNacimiento" value="${j.nacimiento || ''}" placeholder="Nacimiento">
-          <input id="editFoto" value="${j.foto}" placeholder="Ruta foto">
+          <input id="editNombre" value="${j.nombre}">
+          <input id="editAltura" value="${j.altura}">
+          <input id="editNacimiento" value="${j.nacimiento}">
+          <input id="editFoto" value="${j.foto}">
+          <button onclick="guardarEdicionJugador('${equipo}', ${index})">Guardar</button>
+          <button onclick="eliminarJugador('${equipo}', ${index})">Eliminar</button>
         `
         : `
           <h2>${j.nombre}</h2>
           <p>Altura: ${j.altura}</p>
-          <p>Nacimiento: ${j.nacimiento || '-'}</p>
+          <p>Nacimiento: ${j.nacimiento}</p>
+          <button onclick="this.parentElement.parentElement.remove()">Cerrar</button>
         `
       }
-
-      <div class="acciones"></div>
     </div>
   `;
 
   document.body.appendChild(modal);
-
-  // 🔥 CERRAR
-  modal.querySelector(".overlay").onclick = () => modal.remove();
-
-  const acciones = modal.querySelector(".acciones");
-
-  if(admin){
-
-    const btnGuardar = document.createElement("button");
-    btnGuardar.textContent = "Guardar";
-    btnGuardar.onclick = () => guardarEdicionJugador(equipo, index);
-
-    const btnEliminar = document.createElement("button");
-    btnEliminar.textContent = "Eliminar";
-    btnEliminar.onclick = () => eliminarJugador(equipo, index);
-
-    acciones.appendChild(btnGuardar);
-    acciones.appendChild(btnEliminar);
-
-  } else {
-
-    const btnCerrar = document.createElement("button");
-    btnCerrar.textContent = "Cerrar";
-    btnCerrar.onclick = () => modal.remove();
-
-    acciones.appendChild(btnCerrar);
-  }
 }
 
 window.abrirJugadorIndex = (equipo, index) => {
-  const j = planteles[equipo][index];
-  abrirJugador(j, index, equipo);
+  abrirJugador(planteles[equipo][index], index, equipo);
 };
-
 
 /* INIT */
 cargarDatos();
+
