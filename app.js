@@ -26,7 +26,6 @@ const db = getFirestore(app);
 const equipoA = "Equipo SEBA";
 const equipoB = "Equipo HEBER";
 
-// ✅ SOLO UNA FUENTE DE VERDAD
 window.admin = localStorage.getItem("admin") === "true";
 
 let datos = [];
@@ -192,6 +191,14 @@ window.eliminarJugador = function(equipo, index) {
 
   document.querySelector(".modal-jugador")?.remove();
 };
+
+/* 🔥 SOLUCIÓN REAL */
+function toggleEquipo(eq) {
+  const el = document.getElementById("lista" + eq);
+  el.style.display = el.style.display === "block" ? "none" : "block";
+}
+
+window.toggleEquipo = toggleEquipo;
 
 /* RENDER */
 function renderAll(){
