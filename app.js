@@ -1,4 +1,3 @@
-// ELEMENTOS DOM
 const modalLogin = document.getElementById("modalLogin");
 const passwordInput = document.getElementById("passwordInput");
 const partidos = document.getElementById("partidos");
@@ -12,21 +11,6 @@ const loader = document.getElementById("loader");
 const listaA = document.getElementById("listaA");
 const listaB = document.getElementById("listaB");
 
-// 🔥 TOAST
-function toast(msg){
-  const t = document.getElementById("toast");
-  if(!t) return;
-  t.innerText = msg;
-  t.classList.add("show");
-  setTimeout(()=> t.classList.remove("show"),2000);
-}
-
-// LOADER
-window.addEventListener("load", ()=>{
-  setTimeout(()=> loader.classList.add("hidden"),300);
-});
-
-// FIREBASE
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -39,7 +23,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// CONFIG
 const equipoA = "Equipo SEBA";
 const equipoB = "Equipo HEBER";
 
@@ -49,7 +32,6 @@ let datos = [];
 let jugadores = [];
 let planteles = { A: [], B: [] };
 
-// GENERAR FECHAS
 function generarFechas(){
   const fechas = [];
   let actual = new Date(2026, 3, 1);
@@ -68,7 +50,7 @@ function generarFechas(){
   return fechas;
 }
 
-// FIREBASE LOAD
+/* FIREBASE */
 function cargarDatos(){
   const ref = doc(db,"torneo","datos");
 
@@ -78,6 +60,7 @@ function cargarDatos(){
 
       datos = data.partidos || generarFechas();
       jugadores = data.jugadores || new Array(datos.length).fill("");
+
       planteles = data.planteles || { A: [], B: [] };
 
       ["A","B"].forEach(eq=>{
@@ -102,10 +85,10 @@ function cargarDatos(){
     }
 
     renderAll();
+    setTimeout(()=> loader.classList.add("hidden"),300);
   });
 }
 
-// SAVE
 function guardar(){
   setDoc(doc(db,"torneo","datos"),{
     partidos:datos,
@@ -114,7 +97,7 @@ function guardar(){
   });
 }
 
-// LOGIN
+/* LOGIN */
 window.abrirLogin = () => modalLogin.style.display="flex";
 
 window.verificarLogin = () => {
@@ -123,51 +106,59 @@ window.verificarLogin = () => {
     localStorage.setItem("admin","true");
     modalLogin.style.display="none";
 
-    renderAll();
-    document.querySelector(".modal-jugador")?.remove();
-    toast("Modo admin activado 🔓");
+    renderAll(); // OK
 
-  } else {
-    toast("Contraseña incorrecta ❌");
-  }
+    // 🔥 AGREGAR ESTO
+    document.querySelector(".modal-jugador")?.remove();
+
+  } else alert("Incorrecto");
 };
 
 window.logout = () => {
   window.admin = false;
   localStorage.removeItem("admin");
   renderAll();
-  toast("Sesión cerrada");
 };
 
-// RESULTADOS
+/* RESULTADO */
 window.guardarResultado = (i)=>{
   let a=parseInt(document.getElementById("a"+i).value);
   let b=parseInt(document.getElementById("b"+i).value);
 
-  if(isNaN(a)||isNaN(b)) return toast("Ingresá goles");
+  if(isNaN(a)||isNaN(b)) return alert("Ingresá goles");
 
   datos[i].golesA=a;
   datos[i].golesB=b;
 
   guardar();
-  toast("Resultado guardado ⚽");
 };
 
-// SECCIONES
 window.mostrarSeccion = (id) => {
   const secciones = document.querySelectorAll(".seccion");
 
   secciones.forEach(sec => {
-    sec.classList.remove("activa");
-    sec.style.display = "none";
+    if(sec.classList.contains("activa")){
+      sec.classList.remove("activa");
+      sec.classList.add("saliendo");
+
+      setTimeout(()=>{
+        sec.classList.remove("saliendo");
+        sec.style.display = "none";
+      }, 400);
+    } else {
+      sec.style.display = "none";
+    }
   });
 
   const nueva = document.getElementById(id);
-  nueva.style.display = "block";
-  setTimeout(()=> nueva.classList.add("activa"),50);
+
+  setTimeout(()=>{
+    nueva.style.display = "block";
+    setTimeout(()=> nueva.classList.add("activa"), 50);
+  }, 400);
 };
 
-// MVP
+/* MVP */
 window.guardarJugador = () => {
   let nombre = document.getElementById("inputJugador").value;
   if (!nombre) return;
@@ -178,18 +169,15 @@ window.guardarJugador = () => {
   jugadores[index] = nombre;
   document.getElementById("inputJugador").value = "";
   guardar();
-
-  toast("MVP guardado ⭐");
 };
 
-// JUGADORES
 window.agregarJugador = (equipo) => {
   let nombre = prompt("Nombre completo");
   if (!nombre) return;
 
-  let altura = prompt("Altura") || "-";
-  let nacimiento = prompt("Nacimiento") || "-";
-  let foto = prompt("Ruta imagen") || "";
+  let altura = prompt("Altura (ej: 1.75)") || "-";
+  let nacimiento = prompt("Fecha nacimiento (dd/mm/aaaa)") || "-";
+  let foto = prompt("Ruta imagen (assets/images/...)") || "";
 
   if(!planteles[equipo]) planteles[equipo] = [];
 
@@ -197,7 +185,6 @@ window.agregarJugador = (equipo) => {
 
   guardar();
   renderPlanteles();
-  toast("Jugador agregado 👤");
 };
 
 window.eliminarJugador = function(equipo, index) {
@@ -208,7 +195,6 @@ window.eliminarJugador = function(equipo, index) {
   renderPlanteles();
 
   document.querySelector(".modal-jugador")?.remove();
-  toast("Jugador eliminado 🗑️");
 };
 
 window.guardarEdicionJugador = function(equipo, index) {
@@ -229,16 +215,17 @@ window.guardarEdicionJugador = function(equipo, index) {
   renderPlanteles();
 
   document.querySelector(".modal-jugador")?.remove();
-  toast("Jugador actualizado ✏️");
 };
 
-// TOGGLE EQUIPO
-window.toggleEquipo = (eq)=>{
+/* 🔥 SOLUCIÓN REAL */
+function toggleEquipo(eq) {
   const el = document.getElementById("lista" + eq);
   el.style.display = el.style.display === "block" ? "none" : "block";
-};
+}
 
-// RENDER
+window.toggleEquipo = toggleEquipo;
+
+/* RENDER */
 function renderAll(){
   renderPartidos();
   renderTabla();
@@ -321,10 +308,20 @@ function renderHistorial() {
     <div class="fila">
       <strong>Fecha ${i+1} - ${p.fecha}</strong><br>
       ${p.golesA!=null ? `${p.golesA}-${p.golesB}` : "Sin jugar"} <br>
-      MVP: ${jugadores[i] || "-"}
+
+      MVP: ${
+        window.admin
+        ? `<input type="text" value="${jugadores[i] || ''}" onchange="editarMVP(${i}, this.value)">`
+        : `<b>${jugadores[i] || "-"}</b>`
+      }
     </div>
   `).join("");
 }
+
+window.editarMVP = (index, nombre) => {
+  jugadores[index] = nombre;
+  guardar();
+};
 
 function renderRanking(){
   let count = {};
@@ -371,8 +368,70 @@ function renderPlanteles() {
 
   document.getElementById("btnA").style.display = isAdmin ? "inline-block" : "none";
   document.getElementById("btnB").style.display = isAdmin ? "inline-block" : "none";
+  document.getElementById("fotoA").style.display = isAdmin ? "inline-block" : "none";
+  document.getElementById("fotoB").style.display = isAdmin ? "inline-block" : "none";
 }
 
-// INIT
+/* MODAL */
+window.abrirJugador = function(j, index, equipo){
+
+  const isAdmin = window.admin === true;
+
+  const modal = document.createElement("div");
+  modal.className = "modal-jugador activo";
+
+  modal.innerHTML = `
+    <div class="overlay"></div>
+
+    <div class="card-jugador" onclick="event.stopPropagation()">
+      <img src="${j.foto || 'https://via.placeholder.com/200'}">
+
+      ${
+        isAdmin
+        ? `
+          <input id="editNombre" value="${j.nombre}">
+          <input id="editAltura" value="${j.altura}">
+          <input id="editNacimiento" value="${j.nacimiento}">
+          <input id="editFoto" value="${j.foto}">
+
+          <button onclick="guardarEdicionJugador('${equipo}', ${index})">Guardar</button>
+          <button onclick="eliminarJugador('${equipo}', ${index})">Eliminar</button>
+        `
+        : `
+          <h2>${j.nombre}</h2>
+          <p>Altura: ${j.altura}</p>
+          <p>Nacimiento: ${j.nacimiento}</p>
+          <button onclick="document.querySelector('.modal-jugador')?.remove()">Cerrar</button>
+        `
+      }
+    </div>
+  `;
+
+  // cerrar modal al hacer click afuera
+  modal.addEventListener("click", () => {
+    modal.remove();
+  });
+
+  document.body.appendChild(modal);
+};
+
+window.abrirJugadorIndex = (equipo, index) => {
+  abrirJugador(planteles[equipo][index], index, equipo);
+};
+
+document.addEventListener("click", function(e){
+
+  const card = e.target.closest(".jugador-card");
+
+  if(card){
+    const equipo = card.dataset.equipo;
+    const index = parseInt(card.dataset.index);
+
+    abrirJugadorIndex(equipo, index);
+  }
+
+});
+
+/* INIT */
 cargarDatos();
 
