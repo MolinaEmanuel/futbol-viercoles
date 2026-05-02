@@ -10,20 +10,26 @@
 
 <body>
 
+<!-- LOADER -->
 <div id="loader" class="loader">
   <div class="spinner"></div>
 </div>
 
+<!-- TOAST NOTIFICACIONES -->
+<div id="toast"></div>
+
+<!-- VIDEO -->
 <div class="video-banner">
   <video autoplay muted loop playsinline>
     <source src="assets/video/video web.mp4" type="video/mp4">
   </video>
 </div>
 
+<!-- HEADER -->
 <div class="header">
 
   <div class="header-left">
-    <img src="assets/images//logo/logo futbol viercoles.png" alt="logo futbol viercoles" class="logo-principal">
+    <img src="assets/images//logo/logo futbol viercoles.png" class="logo-principal">
   </div>
 
   <div class="header-center">
@@ -32,12 +38,12 @@
   </div>
 
   <div class="header-right">
-    <img src="assets/images//logo/logo conmebol.png" alt="logo conmebol" class="logo-secundario">
+    <img src="assets/images//logo/logo conmebol.png" class="logo-secundario">
   </div>
 
 </div>
 
-<!-- NAVBAR -->
+<!-- NAV -->
 <div class="topbar">
   <button onclick="mostrarSeccion('inicio')">Inicio</button>
   <button onclick="mostrarSeccion('plantel')">Plantel</button>
@@ -88,43 +94,38 @@
 
 </div>
 
-
-<div id="plantel" class="seccion" style="display:none;">
+<!-- PLANTEL -->
+<div id="plantel" class="seccion">
   <div class="card">
     <h2>Planteles</h2>
 
     <div class="equipo">
-      <div class="equipo-titulo" onclick="toggleEquipo('A')">
-        Equipo SEBA
-      </div>
+      <div class="equipo-titulo" onclick="toggleEquipo('A')">Equipo SEBA</div>
 
-      <div style="text-align:center; margin-top:10px;">
+      <div class="acciones-equipo">
         <button onclick="agregarJugador('A')" id="btnA">Agregar jugador</button>
-        <button onclick="setFotoEquipo('A')" id="fotoA">Foto equipo</button>
       </div>
 
-      <img id="imgEquipoA" class="foto-equipo" style="display:none;">
+      <img id="imgEquipoA" class="foto-equipo">
       <div id="listaA" class="equipo-lista"></div>
     </div>
 
     <div class="equipo">
-      <div class="equipo-titulo" onclick="toggleEquipo('B')">
-        Equipo HEBER
-      </div>
+      <div class="equipo-titulo" onclick="toggleEquipo('B')">Equipo HEBER</div>
 
-      <div style="text-align:center; margin-top:10px;">
+      <div class="acciones-equipo">
         <button onclick="agregarJugador('B')" id="btnB">Agregar jugador</button>
-        <button onclick="setFotoEquipo('B')" id="fotoB">Foto equipo</button>
       </div>
 
-      <img id="imgEquipoB" class="foto-equipo" style="display:none;">
+      <img id="imgEquipoB" class="foto-equipo">
       <div id="listaB" class="equipo-lista"></div>
     </div>
 
   </div>
 </div>
 
-<div id="historial" class="seccion" style="display:none;">
+<!-- HISTORIAL -->
+<div id="historial" class="seccion">
   <div class="card">
     <h2>Historial</h2>
     <div id="historialContenido"></div>
@@ -132,7 +133,7 @@
 </div>
 
 <!-- RANKING -->
-<div id="ranking" class="seccion" style="display:none;">
+<div id="ranking" class="seccion">
   <div class="card">
     <h2>Ranking MVP</h2>
     <div id="rankingContenido"></div>
@@ -143,3 +144,4 @@
 
 </body>
 </html>
+
