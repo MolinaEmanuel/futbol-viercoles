@@ -1,5 +1,7 @@
 import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 /* ── FIREBASE ─────────────────────────────────────── */
 const firebaseConfig = {
@@ -7,13 +9,14 @@ const firebaseConfig = {
   authDomain:  "torneo-viercoles.firebaseapp.com",
   projectId:   "torneo-viercoles",
 };
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
 
 /* ── CONSTANTES ───────────────────────────────────── */
 const EQUIPO_A = "Equipo SEBA";
 const EQUIPO_B = "Equipo HEBER";
-const PASS     = "cogi2";
+const ADMIN_EMAIL = "emanuelmolina.ush@gmail.com";
 const DB_DOC   = doc(db, "torneo", "datos");
 
 const MESES       = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
@@ -56,7 +59,7 @@ const listaA         = $("listaA");
 const listaB         = $("listaB");
 
 /* ── ESTADO ───────────────────────────────────────── */
-window.admin  = localStorage.getItem("admin") === "true";
+window.admin  = false;
 let datos     = [];
 let jugadores = [];
 let planteles = { A: [], B: [] };
@@ -141,11 +144,9 @@ function actualizarIconoTema(esClaro) {
   const icono = document.getElementById("iconTema");
   if (!icono) return;
   if (esClaro) {
-    // Luna SVG
     icono.setAttribute("viewBox", "0 0 24 24");
     icono.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
   } else {
-    // Sol SVG
     icono.setAttribute("viewBox", "0 0 24 24");
     icono.innerHTML = `<circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`;
   }
@@ -490,7 +491,6 @@ function cargarDatos() {
       jugadores = data.jugadores || new Array(datos.length).fill("");
       videos    = data.videos    || {};
       planteles = data.planteles || { A: [], B: [] };
-      // Fallback de palmarés también cuando llega vacío desde Firestore
       palmares  = (data.palmares && Object.keys(data.palmares).length > 0)
         ? data.palmares
         : { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
@@ -513,21 +513,38 @@ function guardar() {
 }
 
 /* ── AUTH ─────────────────────────────────────────── */
-window.abrirLogin = () => { modalLogin.style.display = "flex"; passwordInput.value = ""; setTimeout(() => passwordInput.focus(), 50); };
-window.verificarLogin = () => {
-  if (passwordInput.value === PASS) {
-    window.admin = true; localStorage.setItem("admin","true");
-    modalLogin.style.display = "none";
-    renderAll(); updateAdminUI();
-    document.querySelector(".modal-fifa")?.remove();
-  } else {
-    passwordInput.value = ""; passwordInput.placeholder = "Contraseña incorrecta"; passwordInput.focus();
-    setTimeout(() => passwordInput.placeholder = "Contraseña", 1500);
-  }
+window.abrirLogin = () => {
+  modalLogin.style.display = "flex";
+  passwordInput.value = "";
+  setTimeout(() => passwordInput.focus(), 50);
 };
-window.logout = () => { window.admin = false; localStorage.removeItem("admin"); renderAll(); updateAdminUI(); };
+
+window.verificarLogin = () => {
+  signInWithEmailAndPassword(auth, ADMIN_EMAIL, passwordInput.value)
+    .then(() => {
+      modalLogin.style.display = "none";
+    })
+    .catch(() => {
+      passwordInput.value = "";
+      passwordInput.placeholder = "Contraseña incorrecta";
+      passwordInput.focus();
+      setTimeout(() => passwordInput.placeholder = "Contraseña", 1500);
+    });
+};
+
+window.logout = () => {
+  signOut(auth);
+};
+
 passwordInput.addEventListener("keydown", e => { if (e.key === "Enter") window.verificarLogin(); });
 modalLogin.addEventListener("click", e => { if (e.target === modalLogin) modalLogin.style.display = "none"; });
+
+// Escucha cambios de sesión de Firebase Auth
+onAuthStateChanged(auth, user => {
+  window.admin = !!user;
+  renderAll();
+  updateAdminUI();
+});
 
 /* ── NAVEGACIÓN ───────────────────────────────────── */
 function mostrarSeccion(id) {
