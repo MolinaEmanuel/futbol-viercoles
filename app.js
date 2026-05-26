@@ -54,6 +54,7 @@ const historialEl    = $("historialContenido");
 const rankingEl      = $("rankingContenido");
 const cumpleEl       = $("cumpleContenido");
 const palmaresEl     = $("palmaresContenido");
+const novedadesEl    = $("novedadesContenido");
 const loaderEl       = $("loader");
 const listaA         = $("listaA");
 const listaB         = $("listaB");
@@ -65,6 +66,7 @@ let jugadores = [];
 let planteles = { A: [], B: [] };
 let videos    = {};
 let palmares  = {};
+let novedades = [];
 let cumpleMesActual = new Date().getMonth();
 
 /* ── HELPERS ──────────────────────────────────────── */
@@ -99,8 +101,14 @@ function avatarUrl(foto) {
 
 function updateAdminUI() {
   const isAdmin = window.admin === true;
-  $("btnAdminLogin").style.display  = isAdmin ? "none"         : "inline-block";
-  $("btnAdminLogout").style.display = isAdmin ? "inline-block" : "none";
+  // Desktop
+  $("btnAdminLogin").style.display  = isAdmin ? "none"         : "inline-flex";
+  $("btnAdminLogout").style.display = isAdmin ? "inline-flex"  : "none";
+  // Mobile
+  const mLogin  = $("btnAdminLoginMobile");
+  const mLogout = $("btnAdminLogoutMobile");
+  if (mLogin)  mLogin.style.display  = isAdmin ? "none"        : "inline-flex";
+  if (mLogout) mLogout.style.display = isAdmin ? "inline-flex" : "none";
 }
 
 function clubDotHTML(escudo) {
@@ -491,6 +499,7 @@ function cargarDatos() {
       jugadores = data.jugadores || new Array(datos.length).fill("");
       videos    = data.videos    || {};
       planteles = data.planteles || { A: [], B: [] };
+      novedades = data.novedades || [];
       palmares  = (data.palmares && Object.keys(data.palmares).length > 0)
         ? data.palmares
         : { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
@@ -500,6 +509,7 @@ function cargarDatos() {
       jugadores = new Array(18).fill("");
       videos    = {};
       planteles = { A: [], B: [] };
+      novedades = [];
       palmares  = { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
       guardar();
     }
@@ -509,7 +519,7 @@ function cargarDatos() {
 }
 
 function guardar() {
-  setDoc(DB_DOC, { partidos: datos, jugadores, planteles, videos, palmares });
+  setDoc(DB_DOC, { partidos: datos, jugadores, planteles, videos, palmares, novedades });
 }
 
 /* ── AUTH ─────────────────────────────────────────── */
@@ -539,7 +549,6 @@ window.logout = () => {
 passwordInput.addEventListener("keydown", e => { if (e.key === "Enter") window.verificarLogin(); });
 modalLogin.addEventListener("click", e => { if (e.target === modalLogin) modalLogin.style.display = "none"; });
 
-// Escucha cambios de sesión de Firebase Auth
 onAuthStateChanged(auth, user => {
   window.admin = !!user;
   renderAll();
@@ -547,8 +556,19 @@ onAuthStateChanged(auth, user => {
 });
 
 /* ── NAVEGACIÓN ───────────────────────────────────── */
+const SECTION_LABELS = {
+  inicio:    "Inicio",
+  plantel:   "Plantel",
+  historial: "Historial",
+  ranking:   "Ranking MVP",
+  novedades: "Novedades",
+  cumples:   "Cumpleaños",
+  palmares:  "Palmarés",
+};
+
 function mostrarSeccion(id) {
-  document.querySelectorAll(".nav-btn[data-section]").forEach(btn => btn.classList.toggle("active-nav", btn.dataset.section === id));
+  document.querySelectorAll(".nav-btn[data-section]").forEach(btn =>
+    btn.classList.toggle("active-nav", btn.dataset.section === id));
   document.querySelectorAll(".seccion").forEach(sec => {
     if (sec.classList.contains("activa")) {
       sec.classList.remove("activa"); sec.classList.add("saliendo");
@@ -557,8 +577,39 @@ function mostrarSeccion(id) {
   });
   const nueva = $(id);
   setTimeout(() => { nueva.style.display = "block"; setTimeout(() => nueva.classList.add("activa"), 50); }, 400);
+  // Update mobile title
+  const mobileTitle = $("mobileNavTitle");
+  if (mobileTitle) mobileTitle.textContent = SECTION_LABELS[id] || id;
 }
 window.mostrarSeccion = mostrarSeccion;
+
+/* Mobile menu */
+window.toggleMobileMenu = () => {
+  const drawer  = $("mobileMenuDrawer");
+  const overlay = $("mobileMenuOverlay");
+  const btn     = $("hamburgerBtn");
+  const open    = drawer.classList.toggle("open");
+  overlay.classList.toggle("open", open);
+  btn.classList.toggle("open", open);
+  btn.setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("menu-open", open);
+};
+
+window.closeMobileMenu = () => {
+  $("mobileMenuDrawer").classList.remove("open");
+  $("mobileMenuOverlay").classList.remove("open");
+  $("hamburgerBtn").classList.remove("open");
+  $("hamburgerBtn").setAttribute("aria-expanded", "false");
+  document.body.classList.remove("menu-open");
+};
+
+window.mostrarSeccionMobile = (id) => {
+  closeMobileMenu();
+  // Update active state in mobile menu
+  document.querySelectorAll(".mobile-menu-item[data-section]").forEach(btn =>
+    btn.classList.toggle("active-mobile", btn.dataset.section === id));
+  mostrarSeccion(id);
+};
 
 /* ── RESULTADOS ───────────────────────────────────── */
 window.guardarResultado = (i) => {
@@ -639,11 +690,32 @@ window.agregarAnio = () => {
   guardar(); renderPalmares();
 };
 
+/* ── NOVEDADES ────────────────────────────────────── */
+window.publicarNovedad = () => {
+  const texto = $("novedadTexto")?.value.trim();
+  if (!texto) return;
+  const ahora = new Date();
+  const fecha = ahora.toLocaleDateString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric" });
+  const hora  = ahora.toLocaleTimeString("es-AR", { hour:"2-digit", minute:"2-digit" });
+  novedades.unshift({ texto, fecha, hora, id: Date.now() });
+  $("novedadTexto").value = "";
+  guardar();
+  renderNovedades();
+};
+
+window.eliminarNovedad = (id) => {
+  if (!confirm("¿Eliminar esta novedad?")) return;
+  novedades = novedades.filter(n => n.id !== id);
+  guardar();
+  renderNovedades();
+};
+
 /* ── RENDER ALL ───────────────────────────────────── */
 function renderAll() {
   renderPartidos(); renderTabla(); renderInfo();
   renderHistorial(); renderRanking(); renderPlanteles();
-  renderCumples(); renderPalmares(); updateAdminUI();
+  renderCumples(); renderPalmares(); renderNovedades();
+  updateAdminUI();
 }
 
 /* ── PARTIDOS ─────────────────────────────────────── */
@@ -751,6 +823,29 @@ function renderRanking() {
         &nbsp;&mdash;&nbsp; ${j.puntos} MVP${j.puntos>1?"s":""}
       </div>`).join("")
     :`<p style="text-align:center;color:var(--text-muted)">Aún no hay MVPs registrados.</p>`;
+}
+
+/* ── NOVEDADES ────────────────────────────────────── */
+function renderNovedades() {
+  const isAdmin = window.admin === true;
+  const adminPanel = $("adminNovedades");
+  if (adminPanel) adminPanel.style.display = isAdmin ? "flex" : "none";
+
+  if (!novedadesEl) return;
+  if (!novedades.length) {
+    novedadesEl.innerHTML = `<p class="novedades-empty">No hay novedades publicadas todavía.</p>`;
+    return;
+  }
+  novedadesEl.innerHTML = novedades.map(n => `
+    <div class="novedad-item">
+      <div class="novedad-meta">
+        <span class="novedad-fecha">📅 ${n.fecha} &nbsp;·&nbsp; ${n.hora}</span>
+        ${isAdmin ? `<button class="novedad-del-btn" onclick="eliminarNovedad(${n.id})" title="Eliminar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>` : ""}
+      </div>
+      <div class="novedad-texto">${n.texto.replace(/\n/g, "<br>")}</div>
+    </div>`).join("");
 }
 
 /* ── PLANTELES ────────────────────────────────────── */
@@ -861,6 +956,59 @@ function renderPalmares() {
   const btnNuevoAnio=isAdmin?`<div class="palmares-nuevo-anio visible"><button onclick="agregarAnio()">+ Agregar año</button></div>`:"";
   palmaresEl.innerHTML=`<div class="card"><h2>Palmarés</h2>${btnNuevoAnio}${cuerpo||'<p style="text-align:center;color:var(--text-muted)">No hay registros aún.</p>'}</div>`;
 }
+
+/* ── COUNTDOWN ────────────────────────────────────── */
+function getProximoMiercoles() {
+  const ahora = new Date();
+  // Los partidos son miércoles a las 21:00 (hora argentina, UTC-3)
+  // Usamos hora local del navegador para que funcione en cualquier zona horaria
+  const HORA_PARTIDO = 21; // 21:00 hs
+  const target = new Date(ahora);
+  const diaSemana = target.getDay(); // 0=Dom, 3=Mié
+  const diasHastaMie = (3 - diaSemana + 7) % 7 || 7;
+  target.setDate(target.getDate() + diasHastaMie);
+  target.setHours(HORA_PARTIDO, 0, 0, 0);
+  // Si hoy es miércoles y aún no pasó la hora, usar hoy
+  if (diaSemana === 3) {
+    const hoy = new Date(ahora);
+    hoy.setHours(HORA_PARTIDO, 0, 0, 0);
+    if (ahora < hoy) return hoy;
+  }
+  return target;
+}
+
+function actualizarCountdown() {
+  const ahora  = new Date();
+  const target = getProximoMiercoles();
+  const diff   = target - ahora;
+
+  if (diff <= 0) {
+    $("cdDias").textContent    = "00";
+    $("cdHoras").textContent   = "00";
+    $("cdMinutos").textContent = "00";
+    $("cdSegundos").textContent = "00";
+    return;
+  }
+
+  const dias    = Math.floor(diff / 86400000);
+  const horas   = Math.floor((diff % 86400000) / 3600000);
+  const minutos = Math.floor((diff % 3600000) / 60000);
+  const segs    = Math.floor((diff % 60000) / 1000);
+
+  const pad = n => String(n).padStart(2, "0");
+  $("cdDias").textContent     = pad(dias);
+  $("cdHoras").textContent    = pad(horas);
+  $("cdMinutos").textContent  = pad(minutos);
+  $("cdSegundos").textContent = pad(segs);
+
+  const fechaLabel = target.toLocaleDateString("es-AR", { weekday:"long", day:"2-digit", month:"long" });
+  const horaLabel  = target.toLocaleTimeString("es-AR", { hour:"2-digit", minute:"2-digit" });
+  const cdFecha = $("countdownFecha");
+  if (cdFecha) cdFecha.textContent = `Miércoles ${fechaLabel.split(", ")[1] || ""} · ${horaLabel} hs`;
+}
+
+actualizarCountdown();
+setInterval(actualizarCountdown, 1000);
 
 /* ── INIT ─────────────────────────────────────────── */
 cargarDatos();
