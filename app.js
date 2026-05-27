@@ -954,7 +954,7 @@ function renderPalmares() {
       </div>
     </div>`).join("");
   const btnNuevoAnio=isAdmin?`<div class="palmares-nuevo-anio visible"><button onclick="agregarAnio()">+ Agregar año</button></div>`:"";
-  palmaresEl.innerHTML=`<div class="card"><h2>Palmarés</h2>${btnNuevoAnio}${cuerpo||'<p style="text-align:center;color:var(--text-muted)">No hay registros aún.</p>'}</div>`;
+  palmaresEl.innerHTML=`<div class="card"><h2>Trofeos</h2>${btnNuevoAnio}${cuerpo||'<p style="text-align:center;color:var(--text-muted)">No hay registros aún.</p>'}</div>`;
 }
 
 /* ── COUNTDOWN ────────────────────────────────────── */
