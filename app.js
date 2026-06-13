@@ -61,12 +61,13 @@ const listaB         = $("listaB");
 
 /* ── ESTADO ───────────────────────────────────────── */
 window.admin  = false;
-let datos     = [];
-let jugadores = [];
-let planteles = { A: [], B: [] };
-let videos    = {};
-let palmares  = {};
-let novedades = [];
+let datos      = [];
+let jugadores  = [];
+let planteles  = { A: [], B: [] };
+let videos     = {};
+let palmares   = {};
+let novedades  = [];
+let goleadores = {}; // { "0": { "Rodri": 2, "Maco": 1 }, "1": { ... } }
 let cumpleMesActual = new Date().getMonth();
 
 /* ── HELPERS ──────────────────────────────────────── */
@@ -495,21 +496,23 @@ function cargarDatos() {
   onSnapshot(DB_DOC, snap => {
     if (snap.exists()) {
       const data = snap.data();
-      datos     = data.partidos  || generarFechas();
-      jugadores = data.jugadores || new Array(datos.length).fill("");
-      videos    = data.videos    || {};
-      planteles = data.planteles || { A: [], B: [] };
-      novedades = data.novedades || [];
+      datos      = data.partidos   || generarFechas();
+      jugadores  = data.jugadores  || new Array(datos.length).fill("");
+      videos     = data.videos     || {};
+      planteles  = data.planteles  || { A: [], B: [] };
+      novedades  = data.novedades  || [];
+      goleadores = data.goleadores || {};
       palmares  = (data.palmares && Object.keys(data.palmares).length > 0)
         ? data.palmares
         : { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
       ["A","B"].forEach(eq => { planteles[eq] = (planteles[eq] || []).map(normalizarJugador); });
     } else {
-      datos     = generarFechas();
-      jugadores = new Array(18).fill("");
-      videos    = {};
-      planteles = { A: [], B: [] };
-      novedades = [];
+      datos      = generarFechas();
+      jugadores  = new Array(18).fill("");
+      videos     = {};
+      planteles  = { A: [], B: [] };
+      novedades  = [];
+      goleadores = {};
       palmares  = { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
       guardar();
     }
@@ -519,7 +522,7 @@ function cargarDatos() {
 }
 
 function guardar() {
-  setDoc(DB_DOC, { partidos: datos, jugadores, planteles, videos, palmares, novedades });
+  setDoc(DB_DOC, { partidos: datos, jugadores, planteles, videos, palmares, novedades, goleadores });
 }
 
 /* ── AUTH ─────────────────────────────────────────── */
@@ -629,6 +632,51 @@ window.guardarJugador = () => {
   jugadores[index] = nombre; $("inputJugador").value = ""; guardar();
 };
 window.editarMVP = (index, nombre) => { jugadores[index] = nombre; guardar(); };
+
+/* ── GOLEADORES ───────────────────────────────────── */
+window.cambiarGol = (fechaIdx, nombreJugador, delta) => {
+  const key = String(fechaIdx);
+  if (!goleadores[key]) goleadores[key] = {};
+  const actual = goleadores[key][nombreJugador] || 0;
+  const nuevo  = Math.max(0, actual + delta);
+  if (nuevo === 0) {
+    delete goleadores[key][nombreJugador];
+  } else {
+    goleadores[key][nombreJugador] = nuevo;
+  }
+  guardar();
+  renderHistorial();
+  renderRanking();
+};
+
+// Devuelve ranking total de goleadores: [{nombre, goles}] ordenado desc
+function calcularGoleadores() {
+  const totales = {};
+  Object.values(goleadores).forEach(fecha => {
+    Object.entries(fecha).forEach(([nombre, cant]) => {
+      totales[nombre] = (totales[nombre] || 0) + cant;
+    });
+  });
+  return Object.entries(totales)
+    .map(([nombre, goles]) => ({ nombre, goles }))
+    .sort((a, b) => b.goles - a.goles);
+}
+
+// Devuelve goles de una fecha agrupados por equipo
+function golesPorEquipo(fechaIdx) {
+  const key    = String(fechaIdx);
+  const fecha  = goleadores[key] || {};
+  const result = { A: [], B: [], sin: [] };
+  Object.entries(fecha).forEach(([nombre, cant]) => {
+    const enc = buscarJugadorPorNombre(nombre);
+    if      (enc?.equipo === "A") result.A.push({ nombre, cant });
+    else if (enc?.equipo === "B") result.B.push({ nombre, cant });
+    else                          result.sin.push({ nombre, cant });
+  });
+  // Ordenar cada grupo por goles desc
+  [result.A, result.B, result.sin].forEach(arr => arr.sort((a,b) => b.cant - a.cant));
+  return result;
+}
 
 /* ── PLANTEL ──────────────────────────────────────── */
 window.agregarJugador = (equipo) => {
@@ -800,29 +848,168 @@ function renderInfo() {
 }
 
 /* ── HISTORIAL ────────────────────────────────────── */
+window.toggleFecha = (i) => {
+  const body = $(`hist-body-${i}`);
+  const icon = $(`hist-icon-${i}`);
+  if (!body) return;
+  const open = body.classList.toggle("hist-open");
+  if (icon) icon.style.transform = open ? "rotate(180deg)" : "rotate(0deg)";
+};
+
 function renderHistorial() {
-  historialEl.innerHTML = datos.map((p,i)=>`
-    <div class="fila">
-      <strong>Fecha ${i+1} &mdash; ${p.fecha}</strong>
-      ${p.golesA!=null?`${EQUIPO_A} ${p.golesA}–${p.golesB} ${EQUIPO_B}`:`<span style="color:var(--text-muted)">Sin jugar</span>`}
-      <br>MVP: ${window.admin
-        ?`<input type="text" value="${jugadores[i]||""}" placeholder="Nombre MVP" onchange="editarMVP(${i},this.value)">`
-        :`<strong>${jugadores[i]||"–"}</strong>`}
-    </div>`).join("");
+  const isAdmin = window.admin === true;
+
+  historialEl.innerHTML = datos.map((p, i) => {
+    const jugada   = p.golesA != null;
+    const mvp      = jugadores[i] || "–";
+    const golesEq  = golesPorEquipo(i);
+    const todosJugadores = [...(planteles.A || []), ...(planteles.B || [])];
+
+    // Resultado
+    let resultado = `<span class="hist-pending">Sin jugar</span>`;
+    if (jugada) {
+      if      (p.golesA > p.golesB) resultado = `<span class="hist-winner">${EQUIPO_A}</span> <span class="hist-score">${p.golesA}–${p.golesB}</span> ${EQUIPO_B}`;
+      else if (p.golesB > p.golesA) resultado = `${EQUIPO_A} <span class="hist-score">${p.golesA}–${p.golesB}</span> <span class="hist-winner">${EQUIPO_B}</span>`;
+      else                          resultado = `<span class="hist-score">${p.golesA}–${p.golesB}</span> <span class="hist-empate">Empate</span>`;
+    }
+
+    // Bloque de goles para mostrar
+    const golesHTML = (() => {
+      const tieneGoles = golesEq.A.length || golesEq.B.length || golesEq.sin.length;
+      if (!jugada && !isAdmin) return "";
+      const formatGoleadores = (arr) =>
+        arr.map(g => `<span class="hist-goleador">${g.nombre} <strong>${g.cant}</strong></span>`).join("");
+
+      const equipoA_html = golesEq.A.length
+        ? `<div class="hist-goles-equipo"><span class="hist-goles-label eq-a">${EQUIPO_A}</span><div class="hist-goles-lista">${formatGoleadores(golesEq.A)}</div></div>` : "";
+      const equipoB_html = golesEq.B.length
+        ? `<div class="hist-goles-equipo"><span class="hist-goles-label eq-b">${EQUIPO_B}</span><div class="hist-goles-lista">${formatGoleadores(golesEq.B)}</div></div>` : "";
+      const sinEq_html = golesEq.sin.length
+        ? `<div class="hist-goles-equipo"><span class="hist-goles-label">Otros</span><div class="hist-goles-lista">${formatGoleadores(golesEq.sin)}</div></div>` : "";
+
+      const displayGoles = (tieneGoles)
+        ? `<div class="hist-goles-wrap">${equipoA_html}${equipoB_html}${sinEq_html}</div>`
+        : (jugada ? `<span class="hist-pending" style="font-size:0.8rem">Sin goles registrados</span>` : "");
+
+      // Admin: botones +/- por jugador de cada equipo
+      const adminGolesHTML = isAdmin && jugada ? `
+        <div class="hist-admin-goles">
+          <div class="hist-admin-goles-titulo">⚽ Registrar goles</div>
+          <div class="hist-admin-equipos">
+            ${["A","B"].map(eq => `
+              <div class="hist-admin-equipo">
+                <div class="hist-admin-eq-label">${eq === "A" ? EQUIPO_A : EQUIPO_B}</div>
+                ${(planteles[eq]||[]).map(j => {
+                  const nombre = j.apodo || j.nombre;
+                  const key    = String(i);
+                  const cant   = (goleadores[key]?.[nombre]) || 0;
+                  return `<div class="hist-admin-jugador">
+                    <span class="hist-admin-nombre">${nombre}</span>
+                    <div class="hist-admin-controls">
+                      <button class="gol-btn gol-minus" onclick="cambiarGol(${i},'${nombre.replace(/'/g,"\\'")}', -1)">−</button>
+                      <span class="gol-count ${cant > 0 ? 'gol-count-active' : ''}">${cant}</span>
+                      <button class="gol-btn gol-plus" onclick="cambiarGol(${i},'${nombre.replace(/'/g,"\\'")}', 1)">+</button>
+                    </div>
+                  </div>`;
+                }).join("")}
+              </div>`).join("")}
+          </div>
+        </div>` : "";
+
+      return `${displayGoles}${adminGolesHTML}`;
+    })();
+
+    // MVP admin
+    const mvpHTML = isAdmin
+      ? `<input type="text" value="${jugadores[i]||""}" placeholder="Nombre MVP" onchange="editarMVP(${i},this.value)">`
+      : `<strong>${mvp}</strong>`;
+
+    // Header badge
+    const badge = jugada
+      ? `<span class="hist-badge hist-badge-jugada">Jugado</span>`
+      : `<span class="hist-badge hist-badge-pendiente">Pendiente</span>`;
+
+    return `
+      <div class="hist-item">
+        <button class="hist-header" onclick="toggleFecha(${i})">
+          <div class="hist-header-left">
+            <span class="hist-num">F${i+1}</span>
+            <span class="hist-fecha-txt">${p.fecha}</span>
+            ${badge}
+          </div>
+          <div class="hist-header-right">
+            ${jugada ? `<span class="hist-preview-score">${p.golesA}–${p.golesB}</span>` : ""}
+            <svg id="hist-icon-${i}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.3s ease;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </button>
+        <div class="hist-body" id="hist-body-${i}">
+          <div class="hist-body-inner">
+            <div class="hist-row">
+              <span class="hist-row-label">Resultado</span>
+              <span class="hist-row-val">${resultado}</span>
+            </div>
+            <div class="hist-row">
+              <span class="hist-row-label">MVP</span>
+              <span class="hist-row-val">${mvpHTML}</span>
+            </div>
+            <div class="hist-row hist-row-goles">
+              <span class="hist-row-label">Goles</span>
+              <div class="hist-row-val">${golesHTML}</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
 }
 
 /* ── RANKING ──────────────────────────────────────── */
 function renderRanking() {
-  const count={};
-  jugadores.forEach(j=>{if(j)count[j]=(count[j]||0)+1;});
-  const ranking=Object.entries(count).map(([nombre,puntos])=>({nombre,puntos})).sort((a,b)=>b.puntos-a.puntos);
-  const medals=["🥇","🥈","🥉"];
-  rankingEl.innerHTML=ranking.length
-    ?ranking.map((j,i)=>`<div class="fila ${i===0?"lider":""}">
-        ${medals[i]||(i+1)+"."} &nbsp;<strong>${j.nombre}</strong>
-        &nbsp;&mdash;&nbsp; ${j.puntos} MVP${j.puntos>1?"s":""}
-      </div>`).join("")
-    :`<p style="text-align:center;color:var(--text-muted)">Aún no hay MVPs registrados.</p>`;
+  const medals = ["🥇","🥈","🥉"];
+
+  // — MVP —
+  const countMVP = {};
+  jugadores.forEach(j => { if (j) countMVP[j] = (countMVP[j] || 0) + 1; });
+  const rankingMVP = Object.entries(countMVP)
+    .map(([nombre, puntos]) => ({ nombre, puntos }))
+    .sort((a, b) => b.puntos - a.puntos);
+
+  const mvpHTML = rankingMVP.length
+    ? rankingMVP.map((j, i) => `
+        <div class="fila ${i===0?"lider":""}">
+          <div class="fila-tabla">
+            <span class="fila-pos">${medals[i] || (i+1)+"."}</span>
+            <span class="fila-nombre">${j.nombre}</span>
+            <span class="fila-pts">${j.puntos} MVP${j.puntos>1?"s":""}</span>
+          </div>
+        </div>`).join("")
+    : `<p class="ranking-empty">Aún no hay MVPs registrados.</p>`;
+
+  // — Goleadores —
+  const rankingGoles = calcularGoleadores();
+  const golesHTML = rankingGoles.length
+    ? rankingGoles.map((j, i) => `
+        <div class="fila ${i===0?"lider":""}">
+          <div class="fila-tabla">
+            <span class="fila-pos">${medals[i] || (i+1)+"."}</span>
+            <span class="fila-nombre">${j.nombre}</span>
+            <span class="fila-pts">⚽ ${j.goles} gol${j.goles>1?"es":""}</span>
+          </div>
+        </div>`).join("")
+    : `<p class="ranking-empty">Aún no hay goles registrados.</p>`;
+
+  rankingEl.innerHTML = `
+    <div class="ranking-bloque">
+      <div class="ranking-bloque-titulo">
+        <span class="ranking-bloque-icon">🏅</span> MVP del Partido
+      </div>
+      ${mvpHTML}
+    </div>
+    <div class="ranking-bloque">
+      <div class="ranking-bloque-titulo">
+        <span class="ranking-bloque-icon">⚽</span> Tabla de Goleadores
+      </div>
+      ${golesHTML}
+    </div>`;
 }
 
 /* ── NOVEDADES ────────────────────────────────────── */
