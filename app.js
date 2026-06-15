@@ -14,8 +14,8 @@ const db   = getFirestore(app);
 const auth = getAuth(app);
 
 /* ── CONSTANTES ───────────────────────────────────── */
-const EQUIPO_A = "Equipo SEBA";
-const EQUIPO_B = "Equipo HEBER";
+const EQUIPO_A = "Pedro Porro FC";
+const EQUIPO_B = "Falta Cardio FC";
 const ADMIN_EMAIL = "emanuelmolina.ush@gmail.com";
 const DB_DOC   = doc(db, "torneo", "datos");
 
@@ -24,7 +24,11 @@ const MESES       = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
 const DIAS_SEMANA = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 const EQUIPOS_OPCIONES = ["", EQUIPO_A, EQUIPO_B];
 
-/* ── ESCUDOS ──────────────────────────────────────── */
+/* ── ESCUDOS DE EQUIPO ────────────────────────────── */
+const ESCUDO_A = "assets/images/escudos/pedro_porro_fc.png";
+const ESCUDO_B = "assets/images/escudos/falta_cardio_fc.png";
+
+/* ── ESCUDOS DE CLUB ──────────────────────────────── */
 const ESCUDOS = {
   "River Plate":   "assets/images/escudos/river.png",
   "Boca Juniors":  "assets/images/escudos/boca.png",
@@ -56,8 +60,6 @@ const cumpleEl       = $("cumpleContenido");
 const palmaresEl     = $("palmaresContenido");
 const novedadesEl    = $("novedadesContenido");
 const loaderEl       = $("loader");
-const listaA         = $("listaA");
-const listaB         = $("listaB");
 
 /* ── ESTADO ───────────────────────────────────────── */
 window.admin  = false;
@@ -1036,36 +1038,78 @@ function renderNovedades() {
 }
 
 /* ── PLANTELES ────────────────────────────────────── */
+window.toggleEquipoPanel = (eq) => {
+  const panel   = $(`panel-equipo-${eq}`);
+  const shield  = $(`shield-btn-${eq}`);
+  if (!panel) return;
+  const open = panel.classList.toggle("equipo-panel-open");
+  shield?.classList.toggle("shield-active", open);
+};
+
 function renderPlanteles() {
-  const isAdmin = window.admin===true;
-  ["A","B"].forEach(eq=>{
-    const lista = eq==="A"?listaA:listaB;
-    lista.innerHTML=`<div class="equipo-lista-inner">${
-      (planteles[eq]||[]).map((j,i)=>{
-        const esCapitan=i===0;
-        const apodo = j.apodo || j.nombre;
-        const reorderHTML=isAdmin?`
-          <div class="reorder-btns" onclick="event.stopPropagation()">
-            <button onclick="moverJugador('${eq}',${i},-1)">▲</button>
-            <button onclick="moverJugador('${eq}',${i},1)">▼</button>
-          </div>`:"";
-        return `
-          <div class="card jugador-card${esCapitan?" capitan":""}" data-equipo="${eq}" data-index="${i}">
-            <img src="${avatarUrl(j.foto)}" alt="${apodo}" onerror="this.src='${avatarUrl("")}'">
-            <div style="flex:1">
-              <strong>${apodo}</strong>
-              <div style="font-size:0.8rem;color:var(--text-muted)">${j.nombre}</div>
-              ${esCapitan ? `<div class="capitan-badge">Capitán</div>` : ""}
-            </div>
-            ${j.dorsal?`<span style="font-size:13px;font-weight:700;color:var(--accent);margin-right:4px">#${j.dorsal}</span>`:""}
-            ${clubDotHTML(j.escudo)}
-            ${reorderHTML}
-          </div>`;
-      }).join("")
-    }</div>`;
-    const adminDiv=$("admin"+eq);
-    if(adminDiv) adminDiv.style.display=isAdmin?"flex":"none";
-  });
+  const isAdmin  = window.admin === true;
+  const plantelEl = $("plantelContenido");
+  if (!plantelEl) return;
+
+  const renderEquipo = (eq) => {
+    const nombre  = eq === "A" ? EQUIPO_A : EQUIPO_B;
+    const escudo  = eq === "A" ? ESCUDO_A : ESCUDO_B;
+    const claseEq = eq === "A" ? "eq-a" : "eq-b";
+    const jugadoresHTML = (planteles[eq] || []).map((j, i) => {
+      const esCapitan = i === 0;
+      const apodo = j.apodo || j.nombre;
+      const reorderHTML = isAdmin ? `
+        <div class="reorder-btns" onclick="event.stopPropagation()">
+          <button onclick="moverJugador('${eq}',${i},-1)">▲</button>
+          <button onclick="moverJugador('${eq}',${i},1)">▼</button>
+        </div>` : "";
+      return `
+        <div class="card jugador-card${esCapitan ? " capitan" : ""}" data-equipo="${eq}" data-index="${i}">
+          <img src="${avatarUrl(j.foto)}" alt="${apodo}" onerror="this.src='${avatarUrl("")}'">
+          <div style="flex:1">
+            <strong>${apodo}</strong>
+            <div style="font-size:0.8rem;color:var(--text-muted)">${j.nombre}</div>
+            ${esCapitan ? `<div class="capitan-badge">Capitán</div>` : ""}
+          </div>
+          ${j.dorsal ? `<span style="font-size:13px;font-weight:700;color:var(--accent);margin-right:4px">#${j.dorsal}</span>` : ""}
+          ${clubDotHTML(j.escudo)}
+          ${reorderHTML}
+        </div>`;
+    }).join("") || `<p style="text-align:center;color:var(--text-muted);padding:20px 0;font-size:0.88rem">Sin jugadores registrados.</p>`;
+
+    const adminHTML = isAdmin ? `
+      <div class="equipo-admin-btns">
+        <button onclick="agregarJugador('${eq}')">+ Agregar jugador</button>
+        <button onclick="setFotoEquipo('${eq}')">📷 Foto equipo</button>
+      </div>` : "";
+
+    return `
+      <div class="shield-col">
+        <button class="shield-btn ${claseEq}" id="shield-btn-${eq}" onclick="toggleEquipoPanel('${eq}')">
+          <img src="${escudo}" alt="${nombre}" class="shield-img"
+               onerror="this.style.display='none'">
+          <span class="shield-nombre">${nombre}</span>
+          <span class="shield-count">${(planteles[eq]||[]).length} jugadores</span>
+          <svg class="shield-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div class="equipo-panel" id="panel-equipo-${eq}">
+          <div class="equipo-panel-inner">
+            ${adminHTML}
+            <img id="imgEquipo${eq}" class="foto-equipo" style="display:none;" alt="Foto ${nombre}">
+            ${jugadoresHTML}
+          </div>
+        </div>
+      </div>`;
+  };
+
+  plantelEl.innerHTML = `
+    <div class="shields-row">
+      ${renderEquipo("A")}
+      ${renderEquipo("B")}
+    </div>`;
 }
 
 /* ── CUMPLEAÑOS ───────────────────────────────────── */

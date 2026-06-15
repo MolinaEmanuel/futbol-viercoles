@@ -196,30 +196,7 @@
     <section id="plantel" class="seccion">
       <div class="card">
         <h2>Planteles</h2>
-        <div class="equipo">
-          <div class="equipo-titulo equipo-titulo-a" onclick="toggleEquipo('A')" role="button" tabindex="0" aria-expanded="false" id="titleA">
-            <span>Equipo SEBA</span>
-            <span class="chevron">▾</span>
-          </div>
-          <div class="equipo-admin" id="adminA" style="display:none;">
-            <button onclick="agregarJugador('A')" id="btnA">+ Agregar jugador</button>
-            <button onclick="setFotoEquipo('A')"  id="fotoA">📷 Foto equipo</button>
-          </div>
-          <img id="imgEquipoA" class="foto-equipo" style="display:none;" alt="Foto Equipo A">
-          <div id="listaA" class="equipo-lista"></div>
-        </div>
-        <div class="equipo">
-          <div class="equipo-titulo equipo-titulo-b" onclick="toggleEquipo('B')" role="button" tabindex="0" aria-expanded="false" id="titleB">
-            <span>Equipo HEBER</span>
-            <span class="chevron">▾</span>
-          </div>
-          <div class="equipo-admin" id="adminB" style="display:none;">
-            <button onclick="agregarJugador('B')" id="btnB">+ Agregar jugador</button>
-            <button onclick="setFotoEquipo('B')"  id="fotoB">📷 Foto equipo</button>
-          </div>
-          <img id="imgEquipoB" class="foto-equipo" style="display:none;" alt="Foto Equipo B">
-          <div id="listaB" class="equipo-lista"></div>
-        </div>
+        <div id="plantelContenido"></div>
       </div>
     </section>
 
@@ -234,7 +211,7 @@
     <!-- SECCIÓN: RANKING -->
     <section id="ranking" class="seccion">
       <div class="card">
-        <h2>Ranking MVP</h2>
+        <h2>Ranking</h2>
         <div id="rankingContenido"></div>
       </div>
     </section>
