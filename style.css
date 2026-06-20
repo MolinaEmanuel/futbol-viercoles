@@ -433,6 +433,14 @@ button:active { transform: scale(0.96); }
   border: 1px solid var(--border); margin-bottom: 20px;
 }
 .cards-top { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; }
+.cards-top-oculto {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  margin: 0; padding: 0;
+}
 .highlight { flex: 1; min-width: 220px; border-left: 4px solid var(--accent); }
 .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--text); margin-top: 4px; }
 
@@ -1102,6 +1110,128 @@ body.tema-claro .ham-line {
 }
 
 /* =============================================
+   TABLA DE POSICIONES — escudo
+   ============================================= */
+.fila-escudo {
+  width: 28px; height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+}
+
+/* =============================================
+   ÚLTIMO PARTIDO
+   ============================================= */
+.ultimo-partido-card { padding-bottom: 24px; }
+
+.ultimo-partido-empty {
+  text-align: center; color: var(--text-muted);
+  padding: 30px 0; font-size: 0.9rem; font-style: italic;
+}
+
+.up-header {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; margin-bottom: 18px;
+}
+.up-fecha-num {
+  font-size: 0.75rem; font-weight: 800; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--accent);
+  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+  padding: 4px 12px; border-radius: 20px;
+}
+.up-fecha-dia {
+  font-size: 0.85rem; font-weight: 600; color: var(--text-muted);
+}
+
+.up-marcador {
+  display: flex; align-items: center; justify-content: center;
+  gap: clamp(12px, 4vw, 36px); margin-bottom: 22px;
+  flex-wrap: nowrap;
+}
+.up-equipo {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; flex: 1; max-width: 150px;
+  opacity: 0.75; transition: opacity 0.3s ease;
+}
+.up-equipo.up-ganador { opacity: 1; }
+.up-escudo {
+  width: clamp(56px, 14vw, 88px); height: clamp(56px, 14vw, 88px);
+  object-fit: contain;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5));
+  transition: transform 0.3s ease;
+}
+.up-equipo.up-ganador .up-escudo {
+  filter: drop-shadow(0 8px 22px rgba(239,68,68,0.4));
+}
+.up-equipo-nombre {
+  font-size: clamp(0.72rem, 1.6vw, 0.88rem); font-weight: 800;
+  text-align: center; color: var(--text); line-height: 1.25;
+}
+
+.up-goles {
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.up-gol {
+  font-size: clamp(2.4rem, 8vw, 3.6rem); font-weight: 900;
+  color: var(--text-muted); line-height: 1;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  min-width: 1ch; text-align: center;
+}
+.up-gol-ganador {
+  color: var(--accent);
+  text-shadow: 0 0 24px rgba(239,68,68,0.45);
+}
+.up-guion {
+  font-size: clamp(1.4rem, 4vw, 2rem); font-weight: 700;
+  color: var(--text-muted); opacity: 0.5;
+}
+
+.up-info-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; flex-wrap: wrap;
+  padding-top: 18px; border-top: 1px solid var(--border);
+}
+.up-info-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.up-info-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.up-info-val {
+  font-size: 1rem; font-weight: 700; color: var(--text);
+}
+.up-mvp-clickable {
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+  display: inline-block;
+}
+.up-mvp-clickable:hover {
+  color: var(--accent);
+  transform: scale(1.05);
+}
+.up-video-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent); color: white;
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  font-size: 0.82rem; font-weight: 700; text-decoration: none;
+  transition: background var(--transition), transform var(--transition);
+}
+.up-video-btn:hover { background: var(--accent-dark); transform: translateY(-1px); }
+
+/* =============================================
+   HISTORIAL — admin resultado inline
+   ============================================= */
+.hist-admin-resultado {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; margin-bottom: 4px;
+}
+.hist-admin-vs {
+  font-size: 0.75rem; color: var(--text-muted); font-weight: 700;
+}
+
+/* =============================================
    RESPONSIVE — Mobile (≤720px: ocultar topbar, mostrar mobile bar)
    ============================================= */
 @media (max-width: 720px) {
@@ -1128,6 +1258,9 @@ body.tema-claro .ham-line {
   .trofeo-card { width: 100%; max-width: 280px; }
   .countdown-num { font-size: 1.9rem; }
   .countdown-unit { min-width: 44px; }
+  .up-marcador { gap: 10px; }
+  .up-equipo { max-width: 100px; }
+  .up-info-row { gap: 10px; }
 }
 
 @media (max-width: 480px) {

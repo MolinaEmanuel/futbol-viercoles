@@ -50,7 +50,7 @@ const $ = id => document.getElementById(id);
 const modalLogin     = $("modalLogin");
 const passwordInput  = $("passwordInput");
 const tablaEl        = $("tabla");
-const partidosEl     = $("partidos");
+const ultimoPartidoEl = $("ultimoPartido");
 const fechaActualEl  = $("fechaActual");
 const jugadorTextoEl = $("jugadorTexto");
 const adminJugadorEl = $("adminJugador");
@@ -621,10 +621,12 @@ window.guardarResultado = (i) => {
   const a = parseInt($("a"+i).value), b = parseInt($("b"+i).value);
   if (isNaN(a)||isNaN(b)) return alert("Ingresá los goles de ambos equipos");
   datos[i].golesA = a; datos[i].golesB = b; guardar();
+  renderAll();
 };
 window.guardarVideo = (i) => {
   const url = $("vid"+i)?.value.trim(); if (!url) return;
   videos[String(i)] = url; guardar();
+  renderHistorial(); renderUltimoPartido();
 };
 
 /* ── MVP ──────────────────────────────────────────── */
@@ -762,48 +764,79 @@ window.eliminarNovedad = (id) => {
 
 /* ── RENDER ALL ───────────────────────────────────── */
 function renderAll() {
-  renderPartidos(); renderTabla(); renderInfo();
+  renderUltimoPartido(); renderTabla(); renderInfo();
   renderHistorial(); renderRanking(); renderPlanteles();
   renderCumples(); renderPalmares(); renderNovedades();
   updateAdminUI();
 }
 
-/* ── PARTIDOS ─────────────────────────────────────── */
-function renderPartidos() {
-  let html = `<thead><tr><th>#</th><th>Día</th><th>Resultado</th><th>Video</th>${window.admin?"<th>Cargar</th>":""}</tr></thead><tbody>`;
-  datos.forEach((p,i) => {
-    let res = `<span style="color:var(--text-muted)">Sin jugar</span>`;
-    if (p.golesA!=null) {
-      if      (p.golesA>p.golesB) res=`${EQUIPO_A} ${p.golesA}–${p.golesB}`;
-      else if (p.golesB>p.golesA) res=`${EQUIPO_B} ${p.golesB}–${p.golesA}`;
-      else                        res=`Empate ${p.golesA}–${p.golesB}`;
-    }
-    const videoUrl  = videos[String(i)] || "";
-    const embedUrl  = youtubeEmbedUrl(videoUrl);
-    const videoCell = videoUrl
-      ? `<a class="video-link" href="${embedUrl}" target="_blank">▶ Ver</a>`
-      : `<span style="color:var(--text-muted);font-size:0.8rem">—</span>`;
-    const adminCell = window.admin ? `<td>
-      <div class="video-input-wrap">
-        <input id="a${i}" type="number" min="0" max="99" placeholder="${p.golesA??""}">&nbsp;vs&nbsp;
-        <input id="b${i}" type="number" min="0" max="99" placeholder="${p.golesB??""}">
-        <button onclick="guardarResultado(${i})">OK</button>
+/* ── ÚLTIMO PARTIDO ───────────────────────────────── */
+function renderUltimoPartido() {
+  if (!ultimoPartidoEl) return;
+  const index = datos.findLastIndex(p => p.golesA != null);
+
+  if (index === -1) {
+    ultimoPartidoEl.innerHTML = `<p class="ultimo-partido-empty">Todavía no se jugó ningún partido.</p>`;
+    return;
+  }
+
+  const p = datos[index];
+  const nombreMVP = jugadores[index] || "";
+  let displayMVP  = nombreMVP;
+  let mvpEnc      = null;
+  if (nombreMVP) {
+    mvpEnc = buscarJugadorPorNombre(nombreMVP);
+    if (mvpEnc) displayMVP = planteles[mvpEnc.equipo][mvpEnc.index].apodo || planteles[mvpEnc.equipo][mvpEnc.index].nombre;
+  }
+
+  const videoUrl  = videos[String(index)] || "";
+  const embedUrl  = youtubeEmbedUrl(videoUrl);
+
+  const ganadorA = p.golesA > p.golesB;
+  const ganadorB = p.golesB > p.golesA;
+
+  const mvpClickAttr = mvpEnc ? `onclick="abrirJugadorIndex('${mvpEnc.equipo}',${mvpEnc.index})"` : "";
+  const mvpClass      = mvpEnc ? "up-info-val up-mvp-clickable" : "up-info-val";
+
+  ultimoPartidoEl.innerHTML = `
+    <div class="up-header">
+      <span class="up-fecha-num">Fecha ${index + 1}</span>
+      <span class="up-fecha-dia">${p.fecha}</span>
+    </div>
+    <div class="up-marcador">
+      <div class="up-equipo ${ganadorA ? "up-ganador" : ""}">
+        <img src="${ESCUDO_A}" alt="${EQUIPO_A}" class="up-escudo" onerror="this.style.display='none'">
+        <span class="up-equipo-nombre">${EQUIPO_A}</span>
       </div>
-      <div class="video-input-wrap" style="margin-top:6px">
-        <input id="vid${i}" type="text" placeholder="URL YouTube" value="${videoUrl}">
-        <button onclick="guardarVideo(${i})">Video</button>
-      </div></td>` : "";
-    html += `<tr><td><strong>F${i+1}</strong></td><td>${p.fecha}</td><td>${res}</td><td>${videoCell}</td>${adminCell}</tr>`;
-  });
-  html += "</tbody>";
-  partidosEl.innerHTML = html;
+      <div class="up-goles">
+        <span class="up-gol ${ganadorA ? "up-gol-ganador" : ""}">${p.golesA}</span>
+        <span class="up-guion">–</span>
+        <span class="up-gol ${ganadorB ? "up-gol-ganador" : ""}">${p.golesB}</span>
+      </div>
+      <div class="up-equipo ${ganadorB ? "up-ganador" : ""}">
+        <img src="${ESCUDO_B}" alt="${EQUIPO_B}" class="up-escudo" onerror="this.style.display='none'">
+        <span class="up-equipo-nombre">${EQUIPO_B}</span>
+      </div>
+    </div>
+    <div class="up-info-row">
+      <div class="up-info-item">
+        <span class="up-info-label">⭐ Jugador de la fecha</span>
+        <span class="${mvpClass}" ${mvpClickAttr}>${displayMVP || "—"}</span>
+      </div>
+      ${videoUrl ? `
+      <a class="up-video-btn" href="${embedUrl}" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Ver video
+      </a>` : ""}
+    </div>
+  `;
 }
 
 /* ── TABLA ────────────────────────────────────────── */
 function renderTabla() {
   const equipos = [
-    {nombre:EQUIPO_A,pts:0,pj:0,pg:0,pe:0,pp:0,gf:0,gc:0},
-    {nombre:EQUIPO_B,pts:0,pj:0,pg:0,pe:0,pp:0,gf:0,gc:0},
+    {nombre:EQUIPO_A,escudo:ESCUDO_A,pts:0,pj:0,pg:0,pe:0,pp:0,gf:0,gc:0},
+    {nombre:EQUIPO_B,escudo:ESCUDO_B,pts:0,pj:0,pg:0,pe:0,pp:0,gf:0,gc:0},
   ];
   datos.forEach(p => {
     if (p.golesA==null) return;
@@ -820,11 +853,12 @@ function renderTabla() {
     <div class="fila ${i===0?"lider":""}">
       <div class="fila-tabla">
         <span class="fila-pos">${i===0?"1°":"2°"}</span>
+        <img src="${eq.escudo}" alt="${eq.nombre}" class="fila-escudo" onerror="this.style.display='none'">
         <span class="fila-nombre">${eq.nombre}</span>
         <span class="fila-pts">${eq.pts} pts</span>
         <span class="fila-gd">${eq.gd>=0?"+":""}${eq.gd} GD</span>
       </div>
-      <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;padding-left:34px">
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;padding-left:54px">
         PJ ${eq.pj} &nbsp;|&nbsp; G ${eq.pg} &nbsp;E ${eq.pe} &nbsp;P ${eq.pp} &nbsp;|&nbsp; ${eq.gf}:${eq.gc}
       </div>
     </div>`).join("");
@@ -926,6 +960,27 @@ function renderHistorial() {
       ? `<input type="text" value="${jugadores[i]||""}" placeholder="Nombre MVP" onchange="editarMVP(${i},this.value)">`
       : `<strong>${mvp}</strong>`;
 
+    // Video
+    const videoUrl = videos[String(i)] || "";
+    const embedUrl = youtubeEmbedUrl(videoUrl);
+    const videoHTML = isAdmin
+      ? `<div class="video-input-wrap">
+          <input id="vid${i}" type="text" placeholder="URL YouTube" value="${videoUrl}">
+          <button onclick="guardarVideo(${i})">Guardar</button>
+        </div>`
+      : (videoUrl
+          ? `<a class="video-link" href="${embedUrl}" target="_blank">▶ Ver video</a>`
+          : `<span class="hist-pending" style="font-size:0.85rem">Sin video</span>`);
+
+    // Resultado admin (carga de goles)
+    const resultadoAdminHTML = isAdmin ? `
+      <div class="hist-admin-resultado">
+        <input id="a${i}" type="number" min="0" max="99" placeholder="${p.golesA??""}">
+        <span class="hist-admin-vs">vs</span>
+        <input id="b${i}" type="number" min="0" max="99" placeholder="${p.golesB??""}">
+        <button onclick="guardarResultado(${i})">Guardar</button>
+      </div>` : "";
+
     // Header badge
     const badge = jugada
       ? `<span class="hist-badge hist-badge-jugada">Jugado</span>`
@@ -950,6 +1005,7 @@ function renderHistorial() {
               <span class="hist-row-label">Resultado</span>
               <span class="hist-row-val">${resultado}</span>
             </div>
+            ${resultadoAdminHTML}
             <div class="hist-row">
               <span class="hist-row-label">MVP</span>
               <span class="hist-row-val">${mvpHTML}</span>
@@ -957,6 +1013,10 @@ function renderHistorial() {
             <div class="hist-row hist-row-goles">
               <span class="hist-row-label">Goles</span>
               <div class="hist-row-val">${golesHTML}</div>
+            </div>
+            <div class="hist-row">
+              <span class="hist-row-label">Video</span>
+              <span class="hist-row-val">${videoHTML}</span>
             </div>
           </div>
         </div>
