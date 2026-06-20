@@ -884,12 +884,15 @@ function renderInfo() {
 }
 
 /* ── HISTORIAL ────────────────────────────────────── */
+const fechasAbiertas = new Set();
+
 window.toggleFecha = (i) => {
   const body = $(`hist-body-${i}`);
   const icon = $(`hist-icon-${i}`);
   if (!body) return;
   const open = body.classList.toggle("hist-open");
   if (icon) icon.style.transform = open ? "rotate(180deg)" : "rotate(0deg)";
+  if (open) fechasAbiertas.add(i); else fechasAbiertas.delete(i);
 };
 
 function renderHistorial() {
@@ -986,6 +989,8 @@ function renderHistorial() {
       ? `<span class="hist-badge hist-badge-jugada">Jugado</span>`
       : `<span class="hist-badge hist-badge-pendiente">Pendiente</span>`;
 
+    const estaAbierta = fechasAbiertas.has(i);
+
     return `
       <div class="hist-item">
         <button class="hist-header" onclick="toggleFecha(${i})">
@@ -996,10 +1001,10 @@ function renderHistorial() {
           </div>
           <div class="hist-header-right">
             ${jugada ? `<span class="hist-preview-score">${p.golesA}–${p.golesB}</span>` : ""}
-            <svg id="hist-icon-${i}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.3s ease;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg id="hist-icon-${i}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.3s ease;flex-shrink:0;transform:${estaAbierta ? "rotate(180deg)" : "rotate(0deg)"}"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
         </button>
-        <div class="hist-body" id="hist-body-${i}">
+        <div class="hist-body${estaAbierta ? " hist-open" : ""}" id="hist-body-${i}">
           <div class="hist-body-inner">
             <div class="hist-row">
               <span class="hist-row-label">Resultado</span>
