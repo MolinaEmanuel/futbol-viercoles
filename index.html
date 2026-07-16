@@ -150,6 +150,20 @@
 
     <!-- SECCIÓN: INICIO -->
     <section id="inicio" class="seccion activa">
+
+      <!-- BANNER CAMPEÓN (se muestra solo cuando el torneo está matemáticamente definido) -->
+      <div id="campeonBanner" class="campeon-banner" style="display:none;">
+        <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+        <div class="campeon-banner-content">
+          <div class="campeon-trofeo">🏆</div>
+          <div class="campeon-titulo">¡FELICITACIONES!</div>
+          <img id="campeonEscudo" class="campeon-escudo" alt="" onerror="this.style.display='none'">
+          <div class="campeon-nombre" id="campeonNombre">—</div>
+          <div class="campeon-subtitulo">Campeón Torneo Apertura 2026</div>
+          <div class="campeon-detalle" id="campeonDetalle"></div>
+        </div>
+      </div>
+
       <div class="cards-top cards-top-oculto">
         <div class="card highlight">
           <h3>Fecha actual</h3>

@@ -764,10 +764,156 @@ window.eliminarNovedad = (id) => {
 
 /* ── RENDER ALL ───────────────────────────────────── */
 function renderAll() {
-  renderUltimoPartido(); renderTabla(); renderInfo();
+  renderUltimoPartido(); renderTabla(); renderCampeon(); renderInfo();
   renderHistorial(); renderRanking(); renderPlanteles();
   renderCumples(); renderPalmares(); renderNovedades();
   updateAdminUI();
+}
+
+/* ── CAMPEÓN DEL TORNEO ───────────────────────────── */
+// Calcula si el torneo ya está matemáticamente definido.
+// Como sólo compiten 2 equipos entre sí, ambos disputan siempre la misma
+// cantidad de fechas: alcanza con comparar los puntos actuales contra el
+// máximo posible que el rival podría sumar ganando TODO lo que resta.
+function calcularCampeon() {
+  const totalFechas = datos.length;
+  const jugados     = datos.filter(p => p.golesA != null);
+  const restantes    = totalFechas - jugados.length;
+
+  let ptsA = 0, ptsB = 0, gfA = 0, gcA = 0, gfB = 0, gcB = 0;
+  jugados.forEach(p => {
+    gfA += p.golesA; gcA += p.golesB;
+    gfB += p.golesB; gcB += p.golesA;
+    if      (p.golesA > p.golesB) ptsA += 3;
+    else if (p.golesB > p.golesA) ptsB += 3;
+    else { ptsA++; ptsB++; }
+  });
+
+  const infoA = { equipo: EQUIPO_A, escudo: ESCUDO_A, pts: ptsA, gd: gfA - gcA };
+  const infoB = { equipo: EQUIPO_B, escudo: ESCUDO_B, pts: ptsB, gd: gfB - gcB };
+
+  const [lider, rival] = ptsA >= ptsB ? [infoA, infoB] : [infoB, infoA];
+  const maxPosibleRival = rival.pts + restantes * 3;
+
+  let definido = false, campeon = null, motivo = "";
+
+  if (restantes === 0) {
+    // Se jugaron todas las fechas: define por puntos y, si hay empate, por gol diferencia.
+    definido = true;
+    if (lider.pts > rival.pts) {
+      campeon = lider;
+      motivo  = "Torneo finalizado";
+    } else if (lider.gd > rival.gd) {
+      campeon = lider;
+      motivo  = "Torneo finalizado · definido por diferencia de gol";
+    } else {
+      campeon = null; // empate total, no hay forma de desempatar automáticamente
+      motivo  = "Torneo finalizado en igualdad de puntos y diferencia de gol";
+    }
+  } else if (lider.pts > maxPosibleRival) {
+    // El rival, ganando absolutamente todo lo que resta, no puede alcanzar al líder.
+    definido = true;
+    campeon  = lider;
+    motivo   = `Campeón con ${restantes} fecha${restantes === 1 ? "" : "s"} de anticipación`;
+  }
+
+  return { definido, campeon, lider, rival, restantes, motivo };
+}
+
+let campeonYaFestejado = false;
+
+function renderCampeon() {
+  const banner = $("campeonBanner");
+  if (!banner) return;
+  const { definido, campeon, restantes, motivo } = calcularCampeon();
+
+  if (!definido || !campeon) {
+    banner.style.display = "none";
+    campeonYaFestejado = false;
+    return;
+  }
+
+  $("campeonNombre").textContent = campeon.equipo;
+  const escudoImg = $("campeonEscudo");
+  escudoImg.src = campeon.escudo;
+  escudoImg.alt = campeon.equipo;
+  escudoImg.style.display = "inline-block";
+  $("campeonDetalle").textContent = motivo;
+
+  const yaEstabaVisible = banner.style.display === "block";
+  banner.style.display = "block";
+
+  if (!campeonYaFestejado) {
+    campeonYaFestejado = true;
+    lanzarConfeti();
+  } else if (!yaEstabaVisible) {
+    lanzarConfeti();
+  }
+}
+
+/* ── CONFETI ──────────────────────────────────────── */
+function lanzarConfeti() {
+  const canvas = $("confettiCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const parent = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+
+  function resize() {
+    canvas.width  = parent.clientWidth  * dpr;
+    canvas.height = parent.clientHeight * dpr;
+    canvas.style.width  = parent.clientWidth  + "px";
+    canvas.style.height = parent.clientHeight + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+
+  const colores = ["#fde68a", "#facc15", "#ef4444", "#818cf8", "#6366f1", "#34d399", "#ffffff"];
+  const piezas = [];
+  const cantidad = Math.min(140, Math.floor(parent.clientWidth / 4));
+
+  for (let i = 0; i < cantidad; i++) {
+    piezas.push({
+      x: Math.random() * parent.clientWidth,
+      y: -20 - Math.random() * parent.clientHeight * 0.5,
+      w: 6 + Math.random() * 6,
+      h: 8 + Math.random() * 10,
+      color: colores[Math.floor(Math.random() * colores.length)],
+      vy: 2 + Math.random() * 3,
+      vx: -1.5 + Math.random() * 3,
+      rot: Math.random() * 360,
+      vrot: -6 + Math.random() * 12,
+    });
+  }
+
+  const duracionMs = 4200;
+  const inicio = performance.now();
+
+  function frame(t) {
+    const transcurrido = t - inicio;
+    ctx.clearRect(0, 0, parent.clientWidth, parent.clientHeight);
+
+    piezas.forEach(p => {
+      p.x   += p.vx;
+      p.y   += p.vy;
+      p.rot += p.vrot;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rot * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+
+    if (transcurrido < duracionMs) {
+      requestAnimationFrame(frame);
+    } else {
+      ctx.clearRect(0, 0, parent.clientWidth, parent.clientHeight);
+    }
+  }
+  requestAnimationFrame(frame);
+
+  window.addEventListener("resize", resize, { once: true });
 }
 
 /* ── ÚLTIMO PARTIDO ───────────────────────────────── */
