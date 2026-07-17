@@ -224,6 +224,11 @@
     <section id="ranking" class="seccion">
       <div class="card">
         <h2>Ranking</h2>
+        <div id="adminRankingConfig" class="admin-ranking-config" style="display:none;">
+          <label for="inputTopRanking">Mostrar Top</label>
+          <input type="number" id="inputTopRanking" min="1" max="50" step="1">
+          <button class="btn-small" onclick="window.actualizarTopRanking()">Guardar</button>
+        </div>
         <div id="rankingContenido"></div>
       </div>
     </section>
@@ -261,4 +266,3 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
-

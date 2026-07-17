@@ -1104,10 +1104,41 @@ body.tema-claro .ham-line {
   border-bottom: 1px solid var(--border);
 }
 .ranking-bloque-icon { font-size: 1rem; }
+.ranking-bloque-sub {
+  font-weight: 600; letter-spacing: 0.5px;
+  text-transform: none; color: var(--text-muted);
+  opacity: 0.7; font-size: 0.72rem;
+}
 .ranking-empty {
   text-align: center; color: var(--text-muted);
   font-size: 0.88rem; padding: 16px 0; font-style: italic;
 }
+.ranking-mas {
+  text-align: center; color: var(--text-muted);
+  font-size: 0.78rem; padding-top: 8px; opacity: 0.75;
+}
+.admin-ranking-config {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-card-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+}
+.admin-ranking-config label {
+  font-size: 0.8rem; font-weight: 700; color: var(--text-muted);
+  white-space: nowrap;
+}
+.admin-ranking-config input[type="number"] {
+  width: 64px; background: rgba(255,255,255,0.07);
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); padding: 6px 8px; font-size: 0.85rem;
+  outline: none; font-family: inherit;
+}
+.admin-ranking-config input[type="number"]:focus { border-color: var(--accent); }
+.admin-ranking-config .btn-small {
+  font-size: 0.78rem; padding: 7px 14px; border-radius: 8px;
+  background: var(--accent); color: #fff; border: none;
+  cursor: pointer; font-weight: 700; transition: opacity 0.2s;
+}
+.admin-ranking-config .btn-small:hover { opacity: 0.85; }
 
 /* =============================================
    TABLA DE POSICIONES — escudo

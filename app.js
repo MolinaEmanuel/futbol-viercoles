@@ -70,6 +70,7 @@ let videos     = {};
 let palmares   = {};
 let novedades  = [];
 let goleadores = {}; // { "0": { "Rodri": 2, "Maco": 1 }, "1": { ... } }
+let config     = { topRanking: 5 };
 let cumpleMesActual = new Date().getMonth();
 
 /* ── HELPERS ──────────────────────────────────────── */
@@ -504,6 +505,7 @@ function cargarDatos() {
       planteles  = data.planteles  || { A: [], B: [] };
       novedades  = data.novedades  || [];
       goleadores = data.goleadores || {};
+      config     = { topRanking: 5, ...(data.config || {}) };
       palmares  = (data.palmares && Object.keys(data.palmares).length > 0)
         ? data.palmares
         : { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
@@ -515,6 +517,7 @@ function cargarDatos() {
       planteles  = { A: [], B: [] };
       novedades  = [];
       goleadores = {};
+      config     = { topRanking: 5 };
       palmares  = { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
       guardar();
     }
@@ -524,8 +527,19 @@ function cargarDatos() {
 }
 
 function guardar() {
-  setDoc(DB_DOC, { partidos: datos, jugadores, planteles, videos, palmares, novedades, goleadores });
+  setDoc(DB_DOC, { partidos: datos, jugadores, planteles, videos, palmares, novedades, goleadores, config });
 }
+
+window.actualizarTopRanking = () => {
+  const input = $("inputTopRanking");
+  let valor = parseInt(input.value, 10);
+  if (!Number.isFinite(valor) || valor < 1) valor = 1;
+  if (valor > 50) valor = 50;
+  input.value = valor;
+  config.topRanking = valor;
+  guardar();
+  renderRanking();
+};
 
 /* ── AUTH ─────────────────────────────────────────── */
 window.abrirLogin = () => {
@@ -1178,13 +1192,23 @@ function renderHistorial() {
 /* ── RANKING ──────────────────────────────────────── */
 function renderRanking() {
   const medals = ["🥇","🥈","🥉"];
+  const topN = Math.max(1, parseInt(config.topRanking, 10) || 5);
+
+  const isAdmin = window.admin === true;
+  const adminConfigEl = $("adminRankingConfig");
+  if (adminConfigEl) {
+    adminConfigEl.style.display = isAdmin ? "flex" : "none";
+    const input = $("inputTopRanking");
+    if (input && document.activeElement !== input) input.value = topN;
+  }
 
   // — MVP —
   const countMVP = {};
   jugadores.forEach(j => { if (j) countMVP[j] = (countMVP[j] || 0) + 1; });
-  const rankingMVP = Object.entries(countMVP)
+  const rankingMVPCompleto = Object.entries(countMVP)
     .map(([nombre, puntos]) => ({ nombre, puntos }))
     .sort((a, b) => b.puntos - a.puntos);
+  const rankingMVP = rankingMVPCompleto.slice(0, topN);
 
   const mvpHTML = rankingMVP.length
     ? rankingMVP.map((j, i) => `
@@ -1196,9 +1220,13 @@ function renderRanking() {
           </div>
         </div>`).join("")
     : `<p class="ranking-empty">Aún no hay MVPs registrados.</p>`;
+  const mvpMasHTML = rankingMVPCompleto.length > topN
+    ? `<p class="ranking-mas">+${rankingMVPCompleto.length - topN} jugador${rankingMVPCompleto.length - topN > 1 ? "es" : ""} más con MVP registrados</p>`
+    : "";
 
   // — Goleadores —
-  const rankingGoles = calcularGoleadores();
+  const rankingGolesCompleto = calcularGoleadores();
+  const rankingGoles = rankingGolesCompleto.slice(0, topN);
   const golesHTML = rankingGoles.length
     ? rankingGoles.map((j, i) => `
         <div class="fila ${i===0?"lider":""}">
@@ -1209,19 +1237,24 @@ function renderRanking() {
           </div>
         </div>`).join("")
     : `<p class="ranking-empty">Aún no hay goles registrados.</p>`;
+  const golesMasHTML = rankingGolesCompleto.length > topN
+    ? `<p class="ranking-mas">+${rankingGolesCompleto.length - topN} goleador${rankingGolesCompleto.length - topN > 1 ? "es" : ""} más con goles registrados</p>`
+    : "";
 
   rankingEl.innerHTML = `
     <div class="ranking-bloque">
       <div class="ranking-bloque-titulo">
-        <span class="ranking-bloque-icon">🏅</span> MVP del Partido
+        <span class="ranking-bloque-icon">🏅</span> MVP del Partido <span class="ranking-bloque-sub">· Top ${topN}</span>
       </div>
       ${mvpHTML}
+      ${mvpMasHTML}
     </div>
     <div class="ranking-bloque">
       <div class="ranking-bloque-titulo">
-        <span class="ranking-bloque-icon">⚽</span> Tabla de Goleadores
+        <span class="ranking-bloque-icon">⚽</span> Tabla de Goleadores <span class="ranking-bloque-sub">· Top ${topN}</span>
       </div>
       ${golesHTML}
+      ${golesMasHTML}
     </div>`;
 }
 
@@ -1454,4 +1487,3 @@ setInterval(actualizarCountdown, 1000);
 
 /* ── INIT ─────────────────────────────────────────── */
 cargarDatos();
-
