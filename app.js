@@ -1,5 +1,5 @@
 import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
@@ -18,6 +18,7 @@ const EQUIPO_A = "Pedro Porro FC";
 const EQUIPO_B = "Falta Cardio FC";
 const ADMIN_EMAIL = "emanuelmolina.ush@gmail.com";
 const DB_DOC   = doc(db, "torneo", "datos");
+const HISTORIAL_COL = collection(db, "historial_temporadas");
 
 const MESES       = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
                      "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -70,14 +71,18 @@ let videos     = {};
 let palmares   = {};
 let novedades  = [];
 let goleadores = {}; // { "0": { "Rodri": 2, "Maco": 1 }, "1": { ... } }
-let config     = { topRanking: 5 };
+let config     = { topRanking: 5, topHistorial: 5 };
+let temporada  = { id: "apertura-2026", nombre: "Torneo Apertura", anio: 2026, mitad: "apertura" };
+let insignias  = { killer: [], goldenBoy: [], temporadaId: "" };
+let temporadasPasadas    = []; // snapshots cacheados desde historial_temporadas
+let temporadaSeleccionada = "actual"; // "actual" | id de una temporada archivada
 let cumpleMesActual = new Date().getMonth();
 
 /* ── HELPERS ──────────────────────────────────────── */
-function generarFechas() {
+function generarFechas(fechaInicioStr, cantidad = 18) {
   const fechas = [];
-  let d = new Date(2026, 3, 1);
-  while (fechas.length < 18) {
+  let d = fechaInicioStr ? new Date(fechaInicioStr + "T00:00:00") : new Date(2026, 3, 1);
+  while (fechas.length < cantidad) {
     if (d.getDay() === 3) {
       fechas.push({ fecha: d.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit"}), golesA: null, golesB: null });
     }
@@ -87,7 +92,7 @@ function generarFechas() {
 }
 
 function normalizarJugador(j) {
-  if (typeof j === "string") return { nombre: j, apodo: "", altura: "-", nacimiento: "-", foto: "", dorsal: "", escudo: "" };
+  if (typeof j === "string") return { nombre: j, apodo: "", altura: "-", nacimiento: "-", foto: "", dorsal: "", escudo: "", logros: [] };
   return {
     nombre:     j?.nombre     || "-",
     apodo:      j?.apodo      || "",
@@ -96,6 +101,7 @@ function normalizarJugador(j) {
     foto:       j?.foto       || "",
     dorsal:     j?.dorsal     || "",
     escudo:     j?.escudo     || "",
+    logros:     Array.isArray(j?.logros) ? j.logros : [],
   };
 }
 
@@ -149,6 +155,23 @@ function buscarJugadorPorNombre(texto) {
     if (idx !== -1) return { equipo: eq, index: idx };
   }
   return null;
+}
+
+// ¿El jugador j figura en una lista de insignias vigentes (por apodo o nombre)?
+function tieneInsignia(lista, j) {
+  if (!lista || !lista.length) return false;
+  const candidatos = [j.apodo, j.nombre].filter(Boolean).map(s => s.trim().toLowerCase());
+  return lista.some(n => candidatos.includes(n.trim().toLowerCase()));
+}
+
+// Agrega un logro histórico ("killer" | "goldenBoy") al jugador que matchea ese nombre/apodo.
+function agregarLogro(nombreTexto, tipo, temporadaLabel) {
+  const enc = buscarJugadorPorNombre(nombreTexto);
+  if (!enc) return;
+  const j = planteles[enc.equipo][enc.index];
+  j.logros = j.logros || [];
+  const yaExiste = j.logros.some(l => l.tipo === tipo && l.temporada === temporadaLabel);
+  if (!yaExiste) j.logros.push({ tipo, temporada: temporadaLabel });
 }
 
 /* ── TEMA CLARO / OSCURO ──────────────────────────── */
@@ -397,6 +420,26 @@ window.abrirJugador = (j, index, equipo, esCapitan = false) => {
   const fotoPath     = j.foto || "";
   const apodoMostrar = j.apodo || j.nombre;
 
+  const esKiller    = tieneInsignia(insignias.killer, j);
+  const esGoldenBoy = tieneInsignia(insignias.goldenBoy, j);
+  const insigniasActivasHTML = (esKiller || esGoldenBoy) ? `
+    <div class="fcard-insignias">
+      ${esKiller    ? `<div class="fcard-insignia fcard-insignia-killer">⚽ Killer</div>` : ""}
+      ${esGoldenBoy ? `<div class="fcard-insignia fcard-insignia-golden">⭐ Golden Boy</div>` : ""}
+    </div>` : "";
+
+  const logros = Array.isArray(j.logros) ? j.logros.slice().reverse() : [];
+  const logrosHTML = logros.length ? `
+    <div class="fcard-logros">
+      <div class="fcard-logros-titulo">Logros</div>
+      <div class="fcard-logros-lista">
+        ${logros.map(l => `
+          <span class="fcard-logro-chip ${l.tipo === "killer" ? "chip-killer" : "chip-golden"}">
+            ${l.tipo === "killer" ? "⚽" : "⭐"} ${l.tipo === "killer" ? "Killer" : "Golden Boy"} · ${l.temporada}
+          </span>`).join("")}
+      </div>
+    </div>` : "";
+
   const adminHTML = isAdmin ? `
     <div class="fcard-admin">
       <input id="editNombre"     value="${j.nombre}"     placeholder="Nombre completo">
@@ -430,6 +473,7 @@ window.abrirJugador = (j, index, equipo, esCapitan = false) => {
             <div class="fcard-lines"></div>
             <div class="fcard-dorsal">${j.dorsal || ""}</div>
             <div class="fcard-escudo-box" id="fcEscudo"></div>
+            ${insigniasActivasHTML}
             <div class="fcard-photo-wrap" id="fcFoto"></div>
             ${esCapitan ? `<div class="fcard-capitan-badge">Capitán</div>` : ""}
             <div class="fcard-accent-bar ${esCapitan ? "capitan" : ""}"></div>
@@ -444,8 +488,9 @@ window.abrirJugador = (j, index, equipo, esCapitan = false) => {
               <div class="fcard-stat"><div class="fcard-stat-label">Altura</div><div class="fcard-stat-val">${j.altura !== "-" ? j.altura : "—"}</div></div>
               <div class="fcard-stat"><div class="fcard-stat-label">Nacimiento</div><div class="fcard-stat-val">${j.nacimiento !== "-" ? j.nacimiento : "—"}</div></div>
             </div>
+            ${logrosHTML}
             ${adminHTML}
-            <div class="fcard-footer">Torneo Apertura 2026</div>
+            <div class="fcard-footer">${temporada.nombre} ${temporada.anio}</div>
           </div>
         </div>
       </div>
@@ -505,7 +550,9 @@ function cargarDatos() {
       planteles  = data.planteles  || { A: [], B: [] };
       novedades  = data.novedades  || [];
       goleadores = data.goleadores || {};
-      config     = { topRanking: 5, ...(data.config || {}) };
+      config     = { topRanking: 5, topHistorial: 5, ...(data.config || {}) };
+      temporada  = data.temporada  || { id: "apertura-2026", nombre: "Torneo Apertura", anio: 2026, mitad: "apertura" };
+      insignias  = data.insignias  || { killer: [], goldenBoy: [], temporadaId: "" };
       palmares  = (data.palmares && Object.keys(data.palmares).length > 0)
         ? data.palmares
         : { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
@@ -517,17 +564,34 @@ function cargarDatos() {
       planteles  = { A: [], B: [] };
       novedades  = [];
       goleadores = {};
-      config     = { topRanking: 5 };
+      config     = { topRanking: 5, topHistorial: 5 };
+      temporada  = { id: "apertura-2026", nombre: "Torneo Apertura", anio: 2026, mitad: "apertura" };
+      insignias  = { killer: [], goldenBoy: [], temporadaId: "" };
       palmares  = { "2025": { apertura: "Equipo SEBA", clausura: "Equipo HEBER", supercopa: "Equipo HEBER" } };
       guardar();
     }
     renderAll();
     setTimeout(() => loaderEl.classList.add("hidden"), 300);
   });
+  cargarHistorialTemporadas();
 }
 
 function guardar() {
-  setDoc(DB_DOC, { partidos: datos, jugadores, planteles, videos, palmares, novedades, goleadores, config });
+  setDoc(DB_DOC, { partidos: datos, jugadores, planteles, videos, palmares, novedades, goleadores, config, temporada, insignias });
+}
+
+// Trae el listado de temporadas ya archivadas para el selector de Historial.
+async function cargarHistorialTemporadas() {
+  try {
+    const snap = await getDocs(HISTORIAL_COL);
+    temporadasPasadas = snap.docs
+      .map(d => d.data())
+      .sort((a, b) => new Date(b.fechaCierre) - new Date(a.fechaCierre));
+  } catch (e) {
+    console.error("No se pudo cargar el historial de temporadas:", e);
+    temporadasPasadas = [];
+  }
+  renderSelectorTemporadas();
 }
 
 window.actualizarTopRanking = () => {
@@ -778,10 +842,27 @@ window.eliminarNovedad = (id) => {
 
 /* ── RENDER ALL ───────────────────────────────────── */
 function renderAll() {
+  renderTemporadaHeader();
   renderUltimoPartido(); renderTabla(); renderCampeon(); renderInfo();
   renderHistorial(); renderRanking(); renderPlanteles();
   renderCumples(); renderPalmares(); renderNovedades();
   updateAdminUI();
+}
+
+// Actualiza los textos que dependen de qué temporada está corriendo
+// (título del header, subtítulo del banner de campeón, botón de cierre admin).
+function renderTemporadaHeader() {
+  const nombreCompleto = `${temporada.nombre} ${temporada.anio}`;
+  const tituloEl = $("tituloTorneoHeader");
+  if (tituloEl) tituloEl.textContent = nombreCompleto;
+  const subEl = $("campeonSubtitulo");
+  if (subEl) subEl.textContent = `Campeón ${nombreCompleto}`;
+
+  const cerrarWrap = $("cerrarTemporadaWrap");
+  if (cerrarWrap) {
+    const isAdmin = window.admin === true;
+    cerrarWrap.style.display = (isAdmin && temporadaSeleccionada === "actual") ? "flex" : "none";
+  }
 }
 
 /* ── CAMPEÓN DEL TORNEO ───────────────────────────── */
@@ -993,7 +1074,7 @@ function renderUltimoPartido() {
 }
 
 /* ── TABLA ────────────────────────────────────────── */
-function renderTabla() {
+function calcularTablaEquipos() {
   const equipos = [
     {nombre:EQUIPO_A,escudo:ESCUDO_A,pts:0,pj:0,pg:0,pe:0,pp:0,gf:0,gc:0},
     {nombre:EQUIPO_B,escudo:ESCUDO_B,pts:0,pj:0,pg:0,pe:0,pp:0,gf:0,gc:0},
@@ -1009,6 +1090,11 @@ function renderTabla() {
   });
   equipos.forEach(e=>e.gd=e.gf-e.gc);
   equipos.sort((a,b)=>b.pts!==a.pts?b.pts-a.pts:b.gd-a.gd);
+  return equipos;
+}
+
+function renderTabla() {
+  const equipos = calcularTablaEquipos();
   tablaEl.innerHTML = equipos.map((eq,i)=>`
     <div class="fila ${i===0?"lider":""}">
       <div class="fila-tabla">
@@ -1056,6 +1142,120 @@ window.toggleFecha = (i) => {
 };
 
 function renderHistorial() {
+  renderSelectorTemporadas();
+  if (temporadaSeleccionada !== "actual") {
+    renderHistorialArchivado();
+    return;
+  }
+  renderHistorialActual();
+}
+
+function renderSelectorTemporadas() {
+  const sel = $("selTemporadaHistorial");
+  if (!sel) return;
+  const opciones = [`<option value="actual">${temporada.nombre} ${temporada.anio} (en curso)</option>`]
+    .concat(temporadasPasadas.map(t => `<option value="${t.id}">${t.nombre} ${t.anio}</option>`));
+  sel.innerHTML = opciones.join("");
+  sel.value = temporadaSeleccionada;
+}
+
+window.cambiarTemporadaHistorial = (id) => {
+  temporadaSeleccionada = id;
+  renderHistorial();
+  renderTemporadaHeader();
+};
+
+// Vista de solo lectura de una temporada ya archivada.
+function renderHistorialArchivado() {
+  const t = temporadasPasadas.find(x => x.id === temporadaSeleccionada);
+  if (!t) {
+    historialEl.innerHTML = `<p class="hist-pending">No se pudo cargar esa temporada.</p>`;
+    return;
+  }
+
+  const isAdmin = window.admin === true;
+  const topN = Math.max(1, parseInt(config.topHistorial, 10) || 5);
+  const medals = ["🥇","🥈","🥉"];
+
+  const adminTopHTML = isAdmin ? `
+    <div class="admin-ranking-config">
+      <label for="inputTopHistorial">Mostrar Top</label>
+      <input type="number" id="inputTopHistorial" min="1" max="50" step="1" value="${topN}">
+      <button class="btn-small" onclick="window.actualizarTopHistorial()">Guardar</button>
+    </div>` : "";
+
+  const campeonHTML = t.campeon
+    ? `<div class="hist-arch-campeon">
+         <span>🏆 <strong>${t.campeon.equipo}</strong> campeón con ${t.campeon.puntos} pts${t.campeon.puntosRival != null ? ` (rival terminó con ${t.campeon.puntosRival} pts)` : ""}</span>
+         <div class="hist-arch-motivo">${t.campeon.motivo || ""}</div>
+       </div>`
+    : `<div class="hist-arch-campeon"><span>Torneo cerrado sin campeón definido.</span></div>`;
+
+  const tablaHTML = (t.tablaFinal || []).map((eq, i) => `
+    <div class="fila ${i===0?"lider":""}">
+      <div class="fila-tabla">
+        <span class="fila-pos">${i===0?"1°":"2°"}</span>
+        <img src="${eq.escudo}" alt="${eq.nombre}" class="fila-escudo" onerror="this.style.display='none'">
+        <span class="fila-nombre">${eq.nombre}</span>
+        <span class="fila-pts">${eq.pts} pts</span>
+        <span class="fila-gd">${eq.gd>=0?"+":""}${eq.gd} GD</span>
+      </div>
+    </div>`).join("");
+
+  const rankingHTML = (arrCompleto) => {
+    const arr = (arrCompleto || []).slice(0, topN);
+    if (!arr.length) return `<p class="ranking-empty">Sin registros.</p>`;
+    const filas = arr.map((r, i) => `
+      <div class="fila ${i===0?"lider":""}">
+        <div class="fila-tabla">
+          <span class="fila-pos">${medals[i] || (i+1)+"."}</span>
+          <span class="fila-nombre">${r.nombre}</span>
+          <span class="fila-pts">${r.goles != null ? `⚽ ${r.goles} gol${r.goles>1?"es":""}` : `${r.puntos} MVP${r.puntos>1?"s":""}`}</span>
+        </div>
+      </div>`).join("");
+    const restantes = (arrCompleto || []).length - topN;
+    const masHTML = restantes > 0
+      ? `<p class="ranking-mas">+${restantes} más registrado${restantes>1?"s":""}</p>` : "";
+    return filas + masHTML;
+  };
+
+  const partidosHTML = (t.partidos || []).map((p, i) => {
+    if (p.golesA == null) return "";
+    const videoUrl = (t.videos || {})[String(i)] || "";
+    const mvp = (t.jugadores || [])[i] || "";
+    return `<div class="hist-arch-partido">
+      <span class="hist-arch-fecha">F${i+1} · ${p.fecha}</span>
+      <span class="hist-arch-resultado">${EQUIPO_A} ${p.golesA}–${p.golesB} ${EQUIPO_B}</span>
+      ${mvp ? `<span class="hist-arch-mvp">⭐ ${mvp}</span>` : ""}
+      ${videoUrl ? `<a class="video-link" href="${youtubeEmbedUrl(videoUrl)}" target="_blank">▶ Video</a>` : ""}
+    </div>`;
+  }).join("");
+
+  historialEl.innerHTML = `
+    <div class="hist-archivado">
+      ${campeonHTML}
+      <div class="hist-arch-bloque"><h3>Tabla final</h3>${tablaHTML}</div>
+      ${adminTopHTML}
+      <div class="hist-arch-bloque-doble">
+        <div class="hist-arch-bloque"><h3>⚽ Goleadores <span class="ranking-bloque-sub">· Top ${topN}</span></h3>${rankingHTML(t.goleadores)}</div>
+        <div class="hist-arch-bloque"><h3>🏅 MVP <span class="ranking-bloque-sub">· Top ${topN}</span></h3>${rankingHTML(t.mvp)}</div>
+      </div>
+      <div class="hist-arch-bloque"><h3>Partidos</h3>${partidosHTML || '<p class="ranking-empty">Sin partidos jugados.</p>'}</div>
+    </div>`;
+}
+
+window.actualizarTopHistorial = () => {
+  const input = $("inputTopHistorial");
+  let valor = parseInt(input.value, 10);
+  if (!Number.isFinite(valor) || valor < 1) valor = 1;
+  if (valor > 50) valor = 50;
+  input.value = valor;
+  config.topHistorial = valor;
+  guardar();
+  renderHistorialArchivado();
+};
+
+function renderHistorialActual() {
   const isAdmin = window.admin === true;
 
   historialEl.innerHTML = datos.map((p, i) => {
@@ -1188,6 +1388,116 @@ function renderHistorial() {
       </div>`;
   }).join("");
 }
+
+/* ── CIERRE DE TEMPORADA ──────────────────────────── */
+window.abrirModalCierre = () => {
+  document.querySelector(".modal-cierre")?.remove();
+  const { definido, campeon, motivo } = calcularCampeon();
+  const mitadSugerida = temporada.mitad === "apertura" ? "clausura" : "apertura";
+  const anioSugerido   = (temporada.mitad === "apertura") ? temporada.anio : temporada.anio + 1;
+
+  const modal = document.createElement("div");
+  modal.className = "modal-cierre";
+  modal.innerHTML = `
+    <div class="overlay"></div>
+    <div class="cierre-box" onclick="event.stopPropagation()">
+      <h3>Cerrar ${temporada.nombre} ${temporada.anio}</h3>
+      <p class="cierre-resumen">
+        ${definido
+          ? `🏆 Campeón: <strong>${campeon.equipo}</strong> · ${motivo}`
+          : `⚠️ El torneo todavía no está matemáticamente definido. Si cerrás igual, no se va a asignar campeón ni insignias por goles/MVP si no hay registros.`}
+      </p>
+      <label>Próxima temporada</label>
+      <select id="cierreMitad">
+        <option value="clausura" ${mitadSugerida==="clausura"?"selected":""}>Clausura</option>
+        <option value="apertura" ${mitadSugerida==="apertura"?"selected":""}>Apertura</option>
+      </select>
+      <label>Año</label>
+      <input type="number" id="cierreAnio" value="${anioSugerido}">
+      <label>Fecha de inicio (primer partido)</label>
+      <input type="date" id="cierreFechaInicio">
+      <label>Cantidad de fechas</label>
+      <input type="number" id="cierreCantidadFechas" value="18" min="1" max="40">
+      <div class="cierre-btns">
+        <button class="btn-secondary" onclick="document.querySelector('.modal-cierre')?.remove()">Cancelar</button>
+        <button class="btn-danger" onclick="window.confirmarCierreTemporada()">Confirmar y Archivar</button>
+      </div>
+    </div>`;
+  modal.addEventListener("click", e => {
+    if (e.target === modal || e.target.classList.contains("overlay")) modal.remove();
+  });
+  document.body.appendChild(modal);
+};
+
+window.confirmarCierreTemporada = async () => {
+  const mitad     = $("cierreMitad").value;
+  const anio      = parseInt($("cierreAnio").value, 10) || temporada.anio;
+  const fechaIni  = $("cierreFechaInicio").value;
+  const cantidad  = Math.max(1, parseInt($("cierreCantidadFechas").value, 10) || 18);
+
+  if (!fechaIni) { alert("Falta la fecha de inicio de la próxima temporada."); return; }
+  if (!confirm("Esto va a archivar la temporada actual y resetear resultados, goleadores y MVP para arrancar la próxima. ¿Confirmás?")) return;
+
+  const tablaFinal = calcularTablaEquipos();
+  const { definido, campeon, rival, motivo } = calcularCampeon();
+  const golesFinal = calcularGoleadores();
+  const countMVP = {};
+  jugadores.forEach(j => { if (j) countMVP[j] = (countMVP[j] || 0) + 1; });
+  const mvpFinal = Object.entries(countMVP)
+    .map(([nombre, puntos]) => ({ nombre, puntos }))
+    .sort((a, b) => b.puntos - a.puntos);
+
+  const snapshot = {
+    id: temporada.id, nombre: temporada.nombre, anio: temporada.anio, mitad: temporada.mitad,
+    fechaCierre: new Date().toISOString(),
+    partidos: datos, videos, jugadores,
+    tablaFinal, goleadores: golesFinal, mvp: mvpFinal,
+    campeon: (definido && campeon)
+      ? { equipo: campeon.equipo, puntos: campeon.pts, puntosRival: rival?.pts, motivo }
+      : null,
+  };
+
+  try {
+    await setDoc(doc(HISTORIAL_COL, temporada.id), snapshot);
+  } catch (e) {
+    console.error(e);
+    alert("No se pudo archivar la temporada. Revisá la conexión e intentá de nuevo.");
+    return;
+  }
+
+  // Insignias — soporta empates: todos los que compartan el máximo se llevan la insignia.
+  const maxGoles = golesFinal[0]?.goles || 0;
+  const killers  = maxGoles > 0 ? golesFinal.filter(g => g.goles === maxGoles).map(g => g.nombre) : [];
+  const maxMVP   = mvpFinal[0]?.puntos || 0;
+  const goldenBoys = maxMVP > 0 ? mvpFinal.filter(m => m.puntos === maxMVP).map(m => m.nombre) : [];
+
+  const nombreTemporadaCerrada = `${temporada.nombre} ${temporada.anio}`;
+  killers.forEach(nombre => agregarLogro(nombre, "killer", nombreTemporadaCerrada));
+  goldenBoys.forEach(nombre => agregarLogro(nombre, "goldenBoy", nombreTemporadaCerrada));
+  insignias = { killer: killers, goldenBoy: goldenBoys, temporadaId: temporada.id };
+
+  // Palmares: si hubo campeón definido, se asigna solo automáticamente.
+  if (definido && campeon) {
+    const key = String(temporada.anio);
+    palmares[key] = palmares[key] || {};
+    palmares[key][temporada.mitad] = campeon.equipo;
+  }
+
+  // Reset de la temporada activa
+  temporada = { id: `${mitad}-${anio}`, nombre: `Torneo ${mitad.charAt(0).toUpperCase()+mitad.slice(1)}`, anio, mitad };
+  datos      = generarFechas(fechaIni, cantidad);
+  jugadores  = new Array(datos.length).fill("");
+  videos     = {};
+  goleadores = {};
+
+  guardar();
+  document.querySelector(".modal-cierre")?.remove();
+  temporadaSeleccionada = "actual";
+  campeonYaFestejado = false;
+  await cargarHistorialTemporadas();
+  renderAll();
+  alert(`¡Temporada archivada! Arrancó ${temporada.nombre} ${temporada.anio}.`);
+};
 
 /* ── RANKING ──────────────────────────────────────── */
 function renderRanking() {
@@ -1487,3 +1797,4 @@ setInterval(actualizarCountdown, 1000);
 
 /* ── INIT ─────────────────────────────────────────── */
 cargarDatos();
+

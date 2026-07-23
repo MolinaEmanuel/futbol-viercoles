@@ -19,7 +19,7 @@
   <!-- VIDEO BANNER -->
   <div class="video-banner" aria-hidden="true">
     <video autoplay muted loop playsinline preload="none">
-      <source src="assets/video/video web.mp4" type="video/mp4">
+      <source src="assets/video/video-web.mp4" type="video/mp4">
     </video>
   </div>
 
@@ -29,7 +29,7 @@
       <img src="assets/images/logo/logo futbol viercoles.png" alt="Logo Fútbol Viércoles" class="logo-principal">
     </div>
     <div class="header-center">
-      <h1>Torneo Apertura 2026</h1>
+      <h1 id="tituloTorneoHeader">Torneo Apertura 2026</h1>
       <h2>Julio "Messi" Gimenez</h2>
     </div>
     <div class="header-right">
@@ -159,7 +159,7 @@
           <div class="campeon-titulo">¡FELICITACIONES!</div>
           <img id="campeonEscudo" class="campeon-escudo" alt="" onerror="this.style.display='none'">
           <div class="campeon-nombre" id="campeonNombre">—</div>
-          <div class="campeon-subtitulo">Campeón Torneo Apertura 2026</div>
+          <div class="campeon-subtitulo" id="campeonSubtitulo">Campeón Torneo Apertura 2026</div>
           <div class="campeon-detalle" id="campeonDetalle"></div>
         </div>
       </div>
@@ -216,6 +216,15 @@
     <section id="historial" class="seccion">
       <div class="card">
         <h2>Historial</h2>
+        <div class="historial-selector-wrap">
+          <label for="selTemporadaHistorial">Temporada</label>
+          <select id="selTemporadaHistorial" onchange="window.cambiarTemporadaHistorial(this.value)">
+            <option value="actual">Cargando…</option>
+          </select>
+        </div>
+        <div id="cerrarTemporadaWrap" class="cerrar-temporada-wrap" style="display:none;">
+          <button class="btn-cerrar-temporada" onclick="window.abrirModalCierre()">🏁 Cerrar Temporada y Archivar</button>
+        </div>
         <div id="historialContenido"></div>
       </div>
     </section>
@@ -266,3 +275,4 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
+
